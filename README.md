@@ -1,5 +1,7 @@
 # Vorber
 
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/nniikkoo)
+
 An independent, open-source desktop companion app for preparing audio files for the **Veno-Orbit** eurorack sampler module by Venus Instruments.
 
 Vorber lets you assign audio files to banks, slots, and layers, trim and preview them, handle stereo routing, and export an SD-card-ready folder tree in the exact format the module requires — without manual renaming or conversion in a DAW.
