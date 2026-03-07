@@ -323,4 +323,16 @@ PINK/PINK_SLOT7_L3.wav
 
 ---
 
-*Vorber v0.1.x — companion app for the Veno-Orbit eurorack module*
+## Credits & Disclaimer
+
+**Veno-Orbit** is a product of [Venus Instruments](https://venusinstruments.com). All product names, trademarks, and brand names are the property of their respective owners.
+
+Vorber is an independent, open-source utility developed by the community to assist with preparing audio files for use with the Veno-Orbit module. It is not affiliated with, endorsed by, or officially supported by Venus Instruments.
+
+Vorber does not modify, distribute, or reproduce any proprietary firmware, software, or intellectual property belonging to Venus Instruments. It only processes audio files provided by the user and writes output files in the format documented in the Veno-Orbit user manual.
+
+Use of Vorber is at your own risk. The author(s) make no warranties regarding compatibility, fitness for purpose, or freedom from error.
+
+---
+
+*Vorber v0.1.x — an independent companion utility for the Veno-Orbit eurorack module by Venus Instruments*
