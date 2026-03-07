@@ -12,6 +12,7 @@ const previewCtx = new AudioContext();
 const previewGain = previewCtx.createGain();
 previewGain.connect(previewCtx.destination);
 let playingSource: AudioBufferSourceNode | null = null;
+let isDecoding = false;
 
 function stopPreview() {
   previewGain.gain.cancelScheduledValues(previewCtx.currentTime);
@@ -364,11 +365,29 @@ function LayerSide({ bank, slot, layer, side, isInEdit }: LayerSideProps) {
   }
 
   const clearBtn = (
-    <button className="clear-side-btn" onClick={(e) => { e.stopPropagation(); clearCell({ bank, slot, layer }); }}>✕</button>
+    <button className="clear-side-btn" onClick={(e) => {
+      e.stopPropagation();
+      if (useStore.getState().playingCellId === id) { stopPreview(); useStore.getState().setPlayingCellId(null); }
+      clearCell({ bank, slot, layer });
+    }}>✕</button>
   );
-  const nameEl = <span className="side-filename" title={cell.filePath}>{cell.fileName}</span>;
+  async function handleReplaceFile(e: React.MouseEvent) {
+    e.stopPropagation();
+    const path = await open({ multiple: false, filters: [{ name: "Audio", extensions: AUDIO_EXTENSIONS }] });
+    if (typeof path === "string") await assign(path, path.split("/").pop() ?? path);
+  }
+  const nameEl = (
+    <div className="side-filename-wrap">
+      <button className="side-filename" title={cell.filePath} onClick={handleReplaceFile}>{cell.fileName}</button>
+    </div>
+  );
   const durEl = durLabel ? (
-    <button className={`dur-badge${durOver60 ? " over60" : ""} interactive`} onClick={(e) => { e.stopPropagation(); setOpenTrimId(id); }}>{durLabel}</button>
+    <button className={`dur-badge${durOver60 ? " over60" : ""} interactive`} onClick={(e) => {
+      e.stopPropagation();
+      const { playingCellId } = useStore.getState();
+      if (playingCellId && playingCellId !== id) { stopPreview(); useStore.getState().setPlayingCellId(null); }
+      setOpenTrimId(id);
+    }}>{durLabel}</button>
   ) : null;
   const fmtEl = fmtLabel ? (
     <button
@@ -400,7 +419,7 @@ function LayerSide({ bank, slot, layer, side, isInEdit }: LayerSideProps) {
 function LayerRow({ bank, slot, num }: { bank: Bank; slot: Slot; num: number }) {
   const lLayer = `L${num}` as Layer;
   const rLayer = `R${num}` as Layer;
-  const { getCell, assignFile, playingCellId, setPlayingCellId, missingPaths, openTrimId } = useStore();
+  const { getCell, assignFile, playingCellId, setPlayingCellId, setOpenTrimId, loopingCellId, missingPaths, openTrimId } = useStore();
   const lCell = getCell({ bank, slot, layer: lLayer });
   const rCell = getCell({ bank, slot, layer: rLayer });
   const lMissing = lCell ? missingPaths.includes(lCell.filePath) : false;
@@ -416,20 +435,26 @@ function LayerRow({ bank, slot, num }: { bank: Bank; slot: Slot; num: number }) 
   async function handlePlay(e: React.MouseEvent, id: string, cell: CellData) {
     e.stopPropagation();
     if (playingCellId === id) { stopPreview(); setPlayingCellId(null); return; }
+    if (isDecoding) return;
     stopPreview();
     setPlayingCellId(null);
-    const bytes = await readFile(cell.filePath);
-    const buffer = await previewCtx.decodeAudioData(bytes.buffer);
-    const source = previewCtx.createBufferSource();
-    source.buffer = buffer;
-    startPreview();
-    source.connect(previewGain);
-    source.onended = () => { setPlayingCellId(null); playingSource = null; };
-    playingSource = source;
-    setPlayingCellId(id);
-    const trimStart = cell.trim?.start ?? 0;
-    const trimLen = cell.trim?.length ?? Math.min(buffer.duration, 60);
-    source.start(0, trimStart, trimLen);
+    isDecoding = true;
+    try {
+      if (previewCtx.state === "suspended") await previewCtx.resume();
+      const bytes = await readFile(cell.filePath);
+      const buffer = await previewCtx.decodeAudioData(bytes.buffer);
+      const source = previewCtx.createBufferSource();
+      source.buffer = buffer;
+      startPreview();
+      source.connect(previewGain);
+      source.onended = () => { setPlayingCellId(null); playingSource = null; };
+      playingSource = source;
+      setPlayingCellId(id);
+      setOpenTrimId(id);
+      const trimStart = cell.trim?.start ?? 0;
+      const trimLen = cell.trim?.length ?? Math.min(buffer.duration, 60);
+      source.start(0, trimStart, trimLen);
+    } finally { isDecoding = false; }
   }
 
   function handleUnlink() {
@@ -437,34 +462,36 @@ function LayerRow({ bank, slot, num }: { bank: Bank; slot: Slot; num: number }) 
     if (rCell) assignFile({ bank, slot, layer: rLayer }, { ...rCell, stereoMode: "right-only" });
   }
 
-  const lPlaying = playingCellId === lId;
-  const rPlaying = playingCellId === rId;
+  const lLooping = loopingCellId === lId || (isSplitPair && loopingCellId === rId);
+  const rLooping = loopingCellId === rId || (isSplitPair && loopingCellId === lId);
+  const lPlaying = playingCellId === lId || (isSplitPair && playingCellId === rId);
+  const rPlaying = playingCellId === rId || (isSplitPair && playingCellId === lId);
   const isInEdit = openTrimId === lId || openTrimId === rId;
 
   return (
     <div className="layer-row">
       <div
-        className={`layer-num${lCell ? " has-file" : ""}${lPlaying ? " playing" : ""}${lMissing ? " missing" : ""}${isInEdit && lCell ? " in-edit" : ""}`}
+        className={`layer-num${lCell ? " has-file" : ""}${lPlaying || lLooping ? " playing" : ""}${lLooping ? " looping" : ""}${lMissing ? " missing" : ""}${isInEdit && lCell ? " in-edit" : ""}`}
         onClick={lCell && !lMissing ? (e) => handlePlay(e, lId, lCell) : undefined}
       >
-        {lCell ? (lMissing ? "!" : lPlaying ? "■" : "▶") : `L${num}`}
+        {lCell ? (lMissing ? "!" : lLooping ? "⟳" : lPlaying ? "■" : "▶") : `L${num}`}
       </div>
       <LayerSide bank={bank} slot={slot} layer={lLayer} side="left" isInEdit={isInEdit} />
       <div className="layer-connector">
         {isSplitPair && (
-          <>
+          <div className="layer-connector-inner">
             <span className="connector-line" />
             <button className="unlink-btn" onClick={handleUnlink}>X</button>
             <span className="connector-line" />
-          </>
+          </div>
         )}
       </div>
       <LayerSide bank={bank} slot={slot} layer={rLayer} side="right" isInEdit={isInEdit} />
       <div
-        className={`layer-num${rCell ? " has-file" : ""}${rPlaying ? " playing" : ""}${rMissing ? " missing" : ""}${isInEdit && rCell ? " in-edit" : ""}`}
+        className={`layer-num${rCell ? " has-file" : ""}${rPlaying || rLooping ? " playing" : ""}${rLooping ? " looping" : ""}${rMissing ? " missing" : ""}${isInEdit && rCell ? " in-edit" : ""}`}
         onClick={rCell && !rMissing ? (e) => handlePlay(e, rId, rCell) : undefined}
       >
-        {rCell ? (rMissing ? "!" : rPlaying ? "■" : "▶") : `R${num}`}
+        {rCell ? (rMissing ? "!" : rLooping ? "⟳" : rPlaying ? "■" : "▶") : `R${num}`}
       </div>
     </div>
   );
@@ -498,34 +525,29 @@ function TrimPanel() {
 }
 
 function TrimPanelContent({ bank, slot, layer }: { bank: Bank; slot: Slot; layer: Layer }) {
-  const { getCell, setTrim, setOpenTrimId, setPlayingCellId } = useStore();
+  const { getCell, setTrim, setOpenTrimId, setPlayingCellId, setLoopingCellId } = useStore();
+  const playingCellId = useStore(s => s.playingCellId);
+  const cellId = `${bank}:${slot}:${layer}`;
   const cell = getCell({ bank, slot, layer });
   const panelRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
 
-  // Click outside → close trim panel
-  useEffect(() => {
-    function handleMouseDown(e: MouseEvent) {
-      const target = e.target as Element;
-      if (panelRef.current?.contains(target as Node)) return;
-      if (target.closest(".layer-num.in-edit, .layer-side.in-edit")) return;
-      setOpenTrimId(null);
-    }
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
-  }, [setOpenTrimId]);
   const dragging = useRef<"start" | "end" | "region" | null>(null);
   const trimRef = useRef<TrimSettings>({ start: 0, length: 60 });
   const linkedRef = useRef<{ bank: Bank; slot: Slot; layer: Layer } | null>(null);
   const dragAnchorRef = useRef<{ x: number; start: number } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [peaks, setPeaks] = useState<Float32Array | null>(null);
+  const [peaks, setPeaks] = useState<Float32Array | null>(() =>
+    cell?.filePath ? waveformCache.get(cell.filePath) ?? null : null
+  );
   const trimDrawRef = useRef({ startPct: 0, endPct: 100 });
   const redrawRef = useRef<(() => void) | null>(null);
   const [isLooping, setIsLooping] = useState(false);
+  const [isPlayingOnce, setIsPlayingOnce] = useState(false);
   const loopSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const playheadCanvasRef = useRef<HTMLCanvasElement>(null);
   const loopStartTimeRef = useRef<number>(0);
+  const playbackStartRef = useRef<number>(0);
   const durationRef = useRef<number>(1);
 
   // Stop loop on unmount
@@ -608,9 +630,19 @@ function TrimPanelContent({ bank, slot, layer }: { bank: Bank; slot: Slot; layer
     redrawRef.current?.();
   }, [trimStartPct, trimEndPct]);
 
-  // Animate playhead while looping
+  const isLayerPlaying = playingCellId === cellId && !isLooping && !isPlayingOnce;
+
+  // Record start time when layer play button activates this cell
   useEffect(() => {
-    if (!isLooping) {
+    if (isLayerPlaying) {
+      loopStartTimeRef.current = previewCtx.currentTime;
+      playbackStartRef.current = trimRef.current.start;
+    }
+  }, [isLayerPlaying]);
+
+  // Animate playhead while looping, playing once, or layer play button active
+  useEffect(() => {
+    if (!isLooping && !isPlayingOnce && !isLayerPlaying) {
       const phc = playheadCanvasRef.current;
       if (phc) { const ctx = phc.getContext("2d"); if (ctx) ctx.clearRect(0, 0, phc.width, phc.height); }
       return;
@@ -623,8 +655,8 @@ function TrimPanelContent({ bank, slot, layer }: { bank: Bank; slot: Slot; layer
       if (!canvas) { rafId = requestAnimationFrame(animate); return; }
       const W = canvas.clientWidth;
       const H = canvas.clientHeight;
-      canvas.width = W;
-      canvas.height = H;
+      if (canvas.width !== W) canvas.width = W;
+      if (canvas.height !== H) canvas.height = H;
       if (W > 0 && H > 0) {
         const ctx2d = canvas.getContext("2d");
         if (ctx2d) {
@@ -632,11 +664,24 @@ function TrimPanelContent({ bank, slot, layer }: { bank: Bank; slot: Slot; layer
           const dur = durationRef.current;
           if (dur > 0 && length > 0) {
             const elapsed = previewCtx.currentTime - loopStartTimeRef.current;
-            const posInFile = start + (elapsed % length);
+            const pbStart = playbackStartRef.current;
+            const posInFile = isLooping
+              ? pbStart + (elapsed % length)
+              : Math.min(pbStart + elapsed, pbStart + length);
+
+            // Stop if region has been dragged past the playhead
+            if (posInFile < start - 0.01 || posInFile > start + length + 0.01) {
+              stopPreview();
+              setIsLooping(false);
+              setIsPlayingOnce(false);
+              ctx2d.clearRect(0, 0, W, H);
+              return;
+            }
+
             const x = Math.floor((posInFile / dur) * W);
             ctx2d.clearRect(0, 0, W, H);
-            ctx2d.fillStyle = "rgba(255,255,255,0.85)";
-            ctx2d.fillRect(x, 0, 1, H);
+            ctx2d.fillStyle = "#ffffff";
+            ctx2d.fillRect(x, 0, 2, H);
           }
         }
       }
@@ -644,7 +689,7 @@ function TrimPanelContent({ bank, slot, layer }: { bank: Bank; slot: Slot; layer
     }
     rafId = requestAnimationFrame(animate);
     return () => { active = false; cancelAnimationFrame(rafId); };
-  }, [isLooping]);
+  }, [isLooping, isPlayingOnce, isLayerPlaying]);
 
   if (!cell || !cell.duration) return null;
   const duration = cell.duration;
@@ -683,18 +728,46 @@ function TrimPanelContent({ bank, slot, layer }: { bank: Bank; slot: Slot; layer
   }
 
   function stopLoop() {
-    if (loopSourceRef.current) {
-      stopPreview();
-      setIsLooping(false);
-    }
+    stopPreview();
+    setIsLooping(false);
+    setIsPlayingOnce(false);
+    setLoopingCellId(null);
+    setPlayingCellId(null);
+    loopSourceRef.current = null;
+  }
+
+  async function playOnce() {
+    if (isPlayingOnce) { stopLoop(); return; }
+    if (!cell || isDecoding) return;
+    stopLoop();
+    isDecoding = true;
+    try {
+      if (previewCtx.state === "suspended") await previewCtx.resume();
+      const bytes = await readFile(cell.filePath);
+      const buffer = await previewCtx.decodeAudioData(bytes.buffer);
+      const source = previewCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(previewGain);
+      source.onended = () => { loopSourceRef.current = null; setIsPlayingOnce(false); setPlayingCellId(null); };
+      loopSourceRef.current = source;
+      playingSource = source;
+      startPreview();
+      source.start(0, trim.start, trim.length);
+      loopStartTimeRef.current = previewCtx.currentTime;
+      playbackStartRef.current = trim.start;
+      setPlayingCellId(cellId);
+      setIsPlayingOnce(true);
+    } catch { /* file read or decode failed */ }
+    finally { isDecoding = false; }
   }
 
   async function toggleLoop() {
     if (isLooping) { stopLoop(); return; }
-    if (!cell) return;
-    stopPreview();
-    setPlayingCellId(null);
+    if (!cell || isDecoding) return;
+    stopLoop();
+    isDecoding = true;
     try {
+      if (previewCtx.state === "suspended") await previewCtx.resume();
       const bytes = await readFile(cell.filePath);
       const buffer = await previewCtx.decodeAudioData(bytes.buffer);
       const source = previewCtx.createBufferSource();
@@ -703,14 +776,17 @@ function TrimPanelContent({ bank, slot, layer }: { bank: Bank; slot: Slot; layer
       source.loopStart = trim.start;
       source.loopEnd = trim.start + trim.length;
       source.connect(previewGain);
-      source.onended = () => { loopSourceRef.current = null; setIsLooping(false); };
+      source.onended = () => { loopSourceRef.current = null; setIsLooping(false); setLoopingCellId(null); };
       loopSourceRef.current = source;
       playingSource = source;
       startPreview();
       source.start(0, trim.start);
       loopStartTimeRef.current = previewCtx.currentTime;
+      playbackStartRef.current = trim.start;
+      setLoopingCellId(cellId);
       setIsLooping(true);
     } catch { /* file read or decode failed */ }
+    finally { isDecoding = false; }
   }
 
   useEffect(() => {
@@ -775,6 +851,9 @@ function TrimPanelContent({ bank, slot, layer }: { bank: Bank; slot: Slot; layer
           <span className="trim-pill">length {formatTrimTime(trim.length)}</span>
         </div>
         <div className="trim-header-actions">
+          <button className="trim-pill trim-pill-btn" onClick={playOnce}>
+            {isPlayingOnce ? "stop" : "play once"}
+          </button>
           <button className="trim-pill trim-pill-btn" onClick={toggleLoop}>
             {isLooping ? "stop" : "play as loop"}
           </button>
@@ -839,12 +918,24 @@ function computeExportStats(cells: Record<string, CellData>) {
   };
 }
 
+function computeWarnings(cells: Record<string, CellData>) {
+  let monoCount = 0;
+  let over60Count = 0;
+  for (const cell of Object.values(cells)) {
+    if ((cell.channels ?? 1) > 1) monoCount++;
+    const trimLen = cell.trim?.length ?? (cell.duration ?? 0);
+    if (trimLen > 60) over60Count++;
+  }
+  return { monoCount, over60Count };
+}
+
 function ExportPanel() {
   const cells = useStore((s) => s.cells);
-  const [phase, setPhase] = useState<"idle" | "conflict" | "running" | "done">("idle");
+  const [phase, setPhase] = useState<"idle" | "warn" | "conflict" | "running" | "done">("idle");
   const [progress, setProgress] = useState({ index: 0, total: 0 });
   const [result, setResult] = useState<ExportResult | null>(null);
   const [conflictFiles, setConflictFiles] = useState<string[]>([]);
+  const [warnStats, setWarnStats] = useState({ monoCount: 0, over60Count: 0 });
   const pending = useRef<{ jobs: ExportJob[]; dir: string } | null>(null);
 
   const stats = computeExportStats(cells);
@@ -891,11 +982,11 @@ function ExportPanel() {
     }
   }
 
-  async function handleExportClick() {
+  async function proceedToFolder() {
     const jobs = buildJobs(cells);
     if (jobs.length === 0) return;
     const dir = await open({ directory: true, multiple: false });
-    if (!dir || typeof dir !== "string") return;
+    if (!dir || typeof dir !== "string") { setPhase("idle"); return; }
     const conflicts: string[] = await invoke("check_export_conflicts", { jobs, outputDir: dir });
     if (conflicts.length > 0) {
       pending.current = { jobs, dir };
@@ -906,13 +997,25 @@ function ExportPanel() {
     }
   }
 
+  async function handleExportClick() {
+    const jobs = buildJobs(cells);
+    if (jobs.length === 0) return;
+    const warnings = computeWarnings(cells);
+    if (warnings.monoCount > 0 || warnings.over60Count > 0) {
+      setWarnStats(warnings);
+      setPhase("warn");
+      return;
+    }
+    await proceedToFolder();
+  }
+
   function handleOverwrite() { const p = pending.current!; pending.current = null; setConflictFiles([]); runExport(p.jobs, p.dir, true); }
   function handleSkip() { const p = pending.current!; pending.current = null; setConflictFiles([]); runExport(p.jobs, p.dir, false); }
   function handleCancel() { pending.current = null; setConflictFiles([]); setPhase("idle"); }
 
   return (
     <div
-      className={`export-bar${phase === "running" ? " running" : ""}${phase === "done" ? " done" : ""}`}
+      className={`export-bar${phase === "running" ? " running" : ""}${phase === "done" ? " done" : ""}${phase === "warn" ? " warn" : ""}`}
       onClick={phase === "done" ? () => { setPhase("idle"); setResult(null); } : undefined}
     >
       <div className="export-bar-info">
@@ -923,6 +1026,17 @@ function ExportPanel() {
           <>
             <span className="export-bar-text">{infoText}</span>
             <span className="export-bar-pct">{Math.round(fillPct)}%</span>
+          </>
+        ) : phase === "warn" ? (
+          <>
+            {warnStats.monoCount > 0 && (
+              <span className="export-bar-text">{warnStats.monoCount} file{warnStats.monoCount !== 1 ? "s" : ""} will be summed to mono.</span>
+            )}
+            {warnStats.over60Count > 0 && (
+              <span className="export-bar-text">{warnStats.over60Count} file{warnStats.over60Count !== 1 ? "s" : ""} will be trimmed to 60s.</span>
+            )}
+            <button className="export-action-btn" onClick={proceedToFolder}>export anyway!</button>
+            <button className="export-action-btn" onClick={() => setPhase("idle")}>wait a sec!</button>
           </>
         ) : (
           <>
@@ -948,6 +1062,12 @@ function ExportPanel() {
 
 function App() {
   const { activeBank, activeSlot, cells, setBank, setSlot } = useStore();
+
+  useEffect(() => {
+    stopPreview();
+    useStore.getState().setPlayingCellId(null);
+    useStore.getState().setOpenTrimId(null);
+  }, [activeBank, activeSlot]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -1057,7 +1177,7 @@ function App() {
       <div className="layer-section">
         <div className="layer-section-label">{activeBank}\SLOT{activeSlot}</div>
         <div className="layer-rows">
-          {[0, 1, 2, 3].map((num) => (
+          {[3, 2, 1, 0].map((num) => (
             <LayerRow key={num} bank={activeBank} slot={activeSlot} num={num} />
           ))}
         </div>

@@ -271,7 +271,9 @@
 }
 .layer-num.has-file:hover { filter: brightness(1.08); }
 .layer-num.playing { background: #26ad60; color: #ffffff; }
+.layer-num.looping { font-size: calc(var(--font-body) * 2); }
 .layer-num.in-edit { background: #f5f3f3; }
+.layer-num.in-edit.playing { background: #26ad60; color: #ffffff; }
 .layer-num.missing { background: #6b1e14; color: #ffb3a7; cursor: default; }
 
 /* Layer sides */
@@ -325,15 +327,30 @@
   color: #000000;
 }
 
-.side-filename {
+.side-filename-wrap {
   flex: 1;
+  overflow: hidden;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.layer-side.right .side-filename-wrap { justify-content: flex-end; }
+.layer-side.right .side-filename { text-align: right; }
+.side-filename {
   font-size: var(--font-body);
+  font-family: inherit;
   color: #000000;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
+  max-width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
 }
+.side-filename:hover { text-decoration: underline; }
 
 /* Badges */
 
@@ -412,14 +429,22 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
   background: #1a1a1a;
+}
+
+.layer-connector-inner {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 16px 0;
+  width: 100%;
 }
 
 .connector-line {
   flex: 1;
   height: 1px;
-  background: #555555;
+  background: #ffffff;
 }
 
 .unlink-btn {
@@ -598,6 +623,11 @@
   cursor: default;
 }
 .export-bar.done { cursor: pointer; }
+.export-bar.warn .export-bar-info {
+  background: #b9651d;
+  justify-content: center;
+  gap: 16px;
+}
 
 .export-bar-info {
   flex: 1;
@@ -650,6 +680,7 @@
   white-space: nowrap;
   position: relative;
   z-index: 1;
+  text-decoration: underline;
 }
 .export-action-btn:hover { filter: brightness(0.75); }
 

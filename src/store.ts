@@ -57,6 +57,8 @@ interface StoreState {
   splitStereo: (key: CellKey) => void;
   unsplit: (key: CellKey) => void;
   setPlayingCellId: (id: string | null) => void;
+  loopingCellId: string | null;
+  setLoopingCellId: (id: string | null) => void;
   setSelectedCellId: (id: string | null) => void;
   openFmtOverlayId: string | null;
   setOpenFmtOverlayId: (id: string | null) => void;
@@ -151,6 +153,8 @@ export const useStore = create<StoreState>((set, get) => ({
       return { cells: newCells, isDirty: true };
     }),
   setPlayingCellId: (id) => set({ playingCellId: id }),
+  loopingCellId: null,
+  setLoopingCellId: (id) => set({ loopingCellId: id }),
   setSelectedCellId: (id) => set({ selectedCellId: id }),
   openFmtOverlayId: null,
   setOpenFmtOverlayId: (id) => set({ openFmtOverlayId: id }),

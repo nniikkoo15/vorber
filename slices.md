@@ -325,7 +325,20 @@ Done when: user sees explicit warnings for both untrimmed long files and stereo�
 
 ---
 
-### Slice 22 — Trim panel: multi-layer alignment view *(future)*
+### Slice 23 — Export: selective bank export overlay *(future)*
+**Goal:** User can choose which banks to include in an export run. Unassigned banks are excluded; assigned banks can be individually toggled.
+
+Tasks:
+- Export button opens a bank selection overlay instead of going straight to the folder picker
+- Overlay shows all 8 banks as a list or grid; each bank displays its coloured accent and layer count (e.g. "RED — 6 layers")
+- Banks with no assigned layers are shown as disabled and cannot be selected
+- Banks with assigned layers default to selected; user can deselect any of them
+- "Export selected" button proceeds to the folder picker and runs export only for the selected banks
+- "Select all / deselect all" shortcut for quick toggling
+- If only one bank has assigned layers, overlay is skipped and export proceeds directly (no friction for the common single-bank case)
+- Selection state is not persisted — defaults to all assigned banks selected each time
+
+Done when: user can export a subset of banks in one action; unassigned banks are never selectable.
 **Goal:** Compare and align up to 4 layers simultaneously in the trim panel, with a locked region length and a crossfader for live preview blending.
 
 Tasks:
@@ -355,6 +368,58 @@ Done when: user can load 2–4 layers in stacked view, shift each waveform indep
 
 ---
 
+### Slice 24 — Per-layer level and normalisation *(future)*
+**Goal:** User can adjust output level per layer and optionally normalise files before export.
+
+Tasks:
+
+**Level control**
+- Each layer row shows a gain control (e.g. a small numeric field or compact slider, range −24 dB to +6 dB, default 0 dB)
+- Value stored in `CellData` alongside trim and stereoMode
+- Applied in the ffmpeg pipeline via `volume` filter inserted before the fade filters: `volume=<linear>dB`
+
+**Normalisation**
+- Per-layer toggle: "normalise to −1 dBFS" (peak normalise)
+- When enabled, ffmpeg `loudnorm` or `dynaudnorm` filter is used to normalise the trim region before applying level offset
+- Normalise and level can be used together: normalise first, then apply level trim
+- Badge or indicator shown on the layer row when normalise is active
+
+**UI**
+- Level and normalise controls visible in an expanded row state or inline next to the format badge
+- Reset to 0 dB / normalise off via double-click or dedicated reset button
+
+Done when: user can set per-layer gain and enable normalisation; values are reflected in the exported WAV files.
+
+---
+
+### Slice 25 — Layer sample combine (concatenation) *(future)*
+**Goal:** User can assign multiple source files to a single layer slot. They are concatenated in order and exported as one continuous WAV file.
+
+Tasks:
+
+**Assignment**
+- A layer slot can hold an ordered list of source files instead of just one
+- Drag and drop or file picker adds files to the list; existing file becomes item 1
+- Files are shown as a compact stack in the layer row (e.g. `file1.wav + 2 more`)
+- Each file in the list can be individually removed or reordered via drag
+
+**Trim**
+- The trim panel shows each source file as a separate waveform segment laid out sequentially on a shared timeline
+- Trim handles apply to the combined timeline (start = offset into first file, end = offset into last file)
+- Individual file boundaries are marked as vertical lines on the waveform
+
+**Export**
+- ffmpeg concatenates all source files in order using the `concat` demuxer before applying trim, stereo strategy, fades, and format conversion
+- The combined output must still be ≤ 60 seconds; the over-60s warning applies to the total combined duration
+
+**Constraints**
+- All files in a combined slot share the same stereo mode and output settings
+- Trim and level settings apply to the final concatenated audio, not per-file
+
+Done when: user can combine 2–4 source files into one layer slot and export a single correctly concatenated WAV.
+
+---
+
 ## Status
 
 | Slice | Name | Status |
@@ -381,3 +446,4 @@ Done when: user can load 2–4 layers in stacked view, shift each waveform indep
 | 20 | Trim: waveform zoom | future |
 | 21 | Export: pre-export warnings (untrimmed + stereo) | future |
 | 22 | Trim: multi-layer alignment + crossfader | future |
+| 23 | Export: selective bank export overlay | future |

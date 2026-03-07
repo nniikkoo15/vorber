@@ -180,3 +180,50 @@ When a cell is in `split-L` or `split-R` mode, preview still plays the full ster
 - Slice 19: Trim panel region distribution (auto-slice source into N equal regions across L0–L3 / R0–R3)
 - Slice 20: Trim panel waveform zoom (horizontal zoom + pan for long files)
 - Slice 21: Export bar stereo warning (badge + confirmation dialog before any stereo→mono downmix)
+
+### Known issue: layer order is inverted
+On the Veno-Orbit module, layer 0 is at the physical bottom. The correct top-to-bottom display order is L3 → L2 → L1 → L0 (left) and R3 → R2 → R1 → R0 (right). The app currently renders them L0 → L3 top-to-bottom, which is reversed. Fix: reverse the row rendering order in the slot view so L3/R3 is at the top and L0/R0 is at the bottom.
+
+### Known issue: clear while playing does not stop audio
+When a layer is being previewed and the user clicks ✕ to remove the sample, the audio continues playing. Root cause: the ✕ button in `LayerSide` calls `clearCell()` directly without checking `playingCellId` or calling `stopPreview()`. The `AudioBufferSourceNode` remains connected to `previewGain` and keeps playing.
+
+Fix (next release): in the clear button `onClick`, check `useStore.getState().playingCellId === id` and call `stopPreview()` + `setPlayingCellId(null)` before `clearCell()`.
+
+### Known issue: preview and loop do not apply stereo format
+Both the layer play button (`handlePlay`) and the trim panel loop button play the raw decoded audio buffer with no channel processing. The selected stereo mode (sum, mono L, mono R, split-L, split-R) is ignored — stereo files always play both channels regardless of format.
+
+Fix (next release): route the `BufferSourceNode` through a `ChannelSplitterNode` (for left-only / split-L / right-only / split-R) or a `ChannelMergerNode` (for sum) before connecting to `previewGain`. Applies to both `handlePlay` and the trim panel `toggleLoop`.
+
+### Known issue: preview continues playing when navigating away from slot
+Audio keeps playing when user switches to a different slot or bank, even though the playing layer is no longer visible. Fix (next release): call `stopPreview()` + `setPlayingCellId(null)` when `activeBank` or `activeSlot` changes (e.g. in a `useEffect` watching those values in the store).
+
+### Feature: "play once" button in trim panel
+Add a "play once" button next to the existing loop button in the trim panel header. Plays the trim region once and stops. Useful for quick auditioning without toggling loop on/off. The two buttons sit side by side: `[▶ once] [⟳ loop]`.
+
+### Feature: pre-export warnings (from Slice 21)
+Before export begins, warn the user about: (1) layers with trimmed length still over 60s (module will reject them), (2) stereo files being downmixed to mono (sum / mono L / mono R). Show a summary dialog with the affected cells listed, with options to proceed or cancel.
+
+---
+
+## 2026-03-08 — v0.1.4
+
+### Fixes
+- **Canvas GPU reallocation**: backing store resize now conditional (`canvas.width !== W`), preventing continuous GPU texture reallocation at 60fps
+- **AudioContext suspended**: added `previewCtx.resume()` guard before all playback paths
+- **Layer order inverted**: slot view now renders L3→L0 / R3→R0 top-to-bottom to match module physical layout
+- **Clear while playing**: ✕ button now stops audio before clearing the cell
+- **Preview continues on slot/bank navigation**: `stopPreview()` called on `activeBank`/`activeSlot` change; trim panel also closes
+- **Decode race condition**: module-level `isDecoding` flag prevents two concurrent decode operations
+
+### Features
+- **Pre-export warnings**: orange warning bar shows "N files will be summed to mono" and "N files will be trimmed to 60s" before export; "export anyway!" / "wait a sec!" actions
+- **Play once in trim panel**: "play once" button added next to loop button; plays trim region once and stops; playhead animates for both play once and loop
+- **Playhead decoupled from region**: playhead tracks absolute file position; dragging region window no longer moves playhead; playback stops if region is dragged past playhead
+- **Filename replace**: clicking filename in an assigned layer opens file picker to replace the sample in place
+- **Play opens trim panel**: pressing the layer play button now opens the trim panel for that layer
+- **Split pair play mirroring**: play/loop state shown on both L and R buttons when layers are linked
+- **Loop icon on layer button**: ⟳ at 2× size shown on layer button while trim panel loop is active
+- **Layer link indicator**: connector lines now white, vertically padded to match Figma
+- **Export action underlines**: "export!", "export anyway!", "wait a sec!" all underlined
+- **Filename hover underline**: hovering the filename underlines it; hover area constrained to text width only
+- **Right-side filename alignment**: right channel filename now right-aligned to the layer button
