@@ -236,6 +236,17 @@ Tasks:
 
 ---
 
+### Slice 17 — Crash reporting *(future)*
+**Goal:** App-level error visibility for both Rust panics and React render errors.
+
+Tasks:
+- React `ErrorBoundary` component wrapping the app — catches render errors, shows a fallback UI with error details instead of a blank crash
+- Consider `tauri-plugin-sentry` for Rust-side panic capture if remote reporting is needed
+
+Done when: React render errors show a recovery UI; Rust panics are captured and surfaced.
+
+---
+
 ### Slice 16 — Trim panel playhead
 **Goal:** Waveform shows a playhead position line during preview and loop playback.
 
@@ -246,6 +257,101 @@ Tasks:
 - Same playhead shown for row-level preview when trim panel is open for that cell
 
 Done when: playhead moves smoothly during loop and row preview while trim panel is open.
+
+---
+
+### Slice 18 — Trim panel: grid-based trimming *(future)*
+**Goal:** Snap-to-grid assist for trim handles so regions can be aligned to equal divisions of the waveform.
+
+Tasks:
+- Grid toggle in trim panel header (off / 4 / 8 / 16 divisions)
+- When enabled, handle drag positions snap to the nearest grid line
+- Grid lines rendered as faint vertical marks on the waveform canvas
+- Grid applies to both start and end handles independently
+
+Done when: handles snap cleanly to grid divisions; off mode restores free-drag behaviour.
+
+---
+
+### Slice 19 — Trim panel: region distribution across layers *(future)*
+**Goal:** A source file can be sliced into up to 4 contiguous regions and distributed sequentially to L0–L3 or R0–R3 within the same slot. Regions share boundaries — end of Ln = start of Ln+1.
+
+Tasks:
+- "Distribute to layers" button in trim panel (only shown when at least one adjacent layer in the same channel is empty)
+- User sets N cut points directly on the waveform (1–3 cuts → 2–4 regions); cut points are draggable vertical markers distinct from the trim handles
+- Auto-suggest: evenly space initial cut points across the active trim window as a starting position; user adjusts freely
+- Region boundaries are contiguous: region 0 = [trim start → cut 0], region 1 = [cut 0 → cut 1], …, last region = [last cut → trim end]
+- On confirm: assign each region to the next available layer in the same channel and slot (L0 → L1 → L2 → L3), same source file path, each with its own trim start/length
+- Warn if any target layers already have files assigned
+
+Done when: user can place and drag cut points on the waveform, then distribute contiguous regions across layers in one action.
+
+---
+
+### Slice 20 — Trim panel: waveform zoom *(future)*
+**Goal:** Long samples are easier to trim precisely with horizontal zoom on the waveform canvas.
+
+Tasks:
+- Zoom in/out via scroll wheel over waveform or +/− buttons in trim panel header
+- Zoom anchored at centre of current trim window
+- Horizontal scroll when zoomed in (drag-to-pan or scrollbar)
+- Start/end handles and draggable region work correctly at any zoom level
+- Re-renders the cached peak slice on zoom change (no re-decode)
+
+Done when: can zoom into a short region of a long file and drag handles with fine precision.
+
+---
+
+### Slice 21 — Export bar: pre-export warnings *(future)*
+**Goal:** Before export, surface cells that need user attention — long files that will be auto-trimmed and stereo files that will be summed to mono — so the user can review and confirm.
+
+Tasks:
+
+**Long file warning**
+- Export bar idle state: show a red badge "N untrimmed" when any filled cell has a duration > 60s and the trim window has not been explicitly set (i.e. still at default start=0, length=60)
+- Clicking the badge reveals a small inline list of affected cells (bank/slot/layer)
+- On Export click: if untrimmed long files exist, show confirmation dialog — "X layers contain files longer than 60s and will be trimmed to the first 60 seconds. Open trim panel to choose a different window, or proceed." with Proceed / Cancel
+
+**Stereo warning**
+- Export bar idle state: show an amber badge "N stereo → mono" when any filled cell has a stereo source with strategy = sum (not split)
+- Clicking the badge reveals a small inline list of affected cells
+- On Export click: if stereo-sum cells exist, show confirmation dialog — "X layers contain stereo files and will be summed to mono. Proceed?" with Proceed / Cancel
+- Dialog skipped if all stereo cells are in explicit split mode
+
+**Combined dialog**
+- If both conditions are present, surface both warnings in a single dialog before proceeding
+
+Done when: user sees explicit warnings for both untrimmed long files and stereo→mono downmix before any export runs.
+
+---
+
+### Slice 22 — Trim panel: multi-layer alignment view *(future)*
+**Goal:** Compare and align up to 4 layers simultaneously in the trim panel, with a locked region length and a crossfader for live preview blending.
+
+Tasks:
+
+**Stacked waveform view**
+- "Align layers" mode toggle in trim panel header; available when the current slot+channel has 2–4 assigned layers
+- Trim panel expands to show 2–4 waveform tracks stacked vertically, one per layer (L0 / L1 / L2 / L3), each labelled
+- All tracks share a single locked region length (taken from the first layer's trim length; changing it resizes all)
+- Each track's waveform can be scrolled horizontally independently to shift that layer's trim start — the region window moves over the waveform, the length stays fixed
+- A shared vertical playhead line spans all tracks during playback
+
+**Crossfader**
+- Vertical crossfader rendered as a tall slider to the right of the stacked waveform tracks, spanning their full height
+- Fader position maps continuously top-to-bottom across all active layers: top = L0 fully audible, bottom = L3 (or last active layer) fully audible
+- Gain curve: equal-power crossfade between the two adjacent layers the fader is currently between; all other layers are silent
+  - e.g. fader between L1 and L2 rows → L1 and L2 blend; L0 and L3 gain = 0
+- While loop is playing: dragging the fader updates GainNode gains in real time, no click or dropout
+- Fader snaps to each layer's centre position (pure solo) with a short snap zone; snap points align with their corresponding waveform track row
+- Fader position is preview-only — does not affect stored state or export
+
+**State**
+- Each layer's trim start is updated independently in the store as the user drags its waveform
+- Locked region length written to all layers simultaneously on change
+- Exiting align mode returns to single-layer trim view; all trim values are preserved
+
+Done when: user can load 2–4 layers in stacked view, shift each waveform independently to align transients, loop-play and sweep the vertical crossfader across all layers, and all trim changes persist to export.
 
 ---
 
@@ -269,3 +375,9 @@ Done when: playhead moves smoothly during loop and row preview while trim panel 
 | 14 | Real waveform rendering | done |
 | 15 | GitHub Actions auto-build | deferred |
 | 16 | Trim panel playhead | pending |
+| 17 | Crash reporting | future |
+| 18 | Trim: grid-based trimming | future |
+| 19 | Trim: region distribution to layers | future |
+| 20 | Trim: waveform zoom | future |
+| 21 | Export: pre-export warnings (untrimmed + stereo) | future |
+| 22 | Trim: multi-layer alignment + crossfader | future |

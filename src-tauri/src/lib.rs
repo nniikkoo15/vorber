@@ -146,9 +146,9 @@ async fn export_cells(
             format!("afade=t=in:st=0:d={fade},afade=t=out:st={fade_out_st}:d={fade},{aformat}")
         } else {
             let pan = match job.stereo_mode.as_str() {
-                "split-L" => "pan=mono|c0=FL",
-                "split-R" => "pan=mono|c0=FR",
-                _          => "pan=mono|c0=0.5*FL+0.5*FR",
+                "split-L" | "left-only"  => "pan=mono|c0=FL",
+                "split-R" | "right-only" => "pan=mono|c0=FR",
+                _                        => "pan=mono|c0=0.5*FL+0.5*FR",
             };
             format!("{pan},afade=t=in:st=0:d={fade},afade=t=out:st={fade_out_st}:d={fade},{aformat}")
         };
@@ -162,7 +162,8 @@ async fn export_cells(
                 "-af", &af,
                 "-f", "wav",        // explicit WAV container (no RF64, no BWF extensions)
                 "-rf64", "never",   // keep standard RIFF even if file > 4 GB limit
-                "-fflags", "+bitexact", // suppress LIST INFO / ISFT metadata chunk
+                "-fflags", "+bitexact", // suppress ffmpeg encoder identification tag
+                "-map_metadata", "-1", // strip all input metadata (LIST INFO from Splice etc.)
                 "-c:a", "pcm_s16le",
                 out.to_str().unwrap_or(""),
             ])
