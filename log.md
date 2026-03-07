@@ -54,3 +54,93 @@ Fix: `cellFromPos(x, y)` divides by `window.devicePixelRatio` first, falls back 
 
 ### Known issue: preview ignores stereo split mode
 When a cell is in `split-L` or `split-R` mode, preview still plays the full stereo buffer. The fix is to route through a `ChannelSplitterNode` before the gain node, connecting only output 0 (L) or output 1 (R) to `previewGain`. Not blocking for export correctness — export uses ffmpeg's `pan` filter which is correct. Fix when prioritised.
+
+---
+
+## 2026-03-05 — Slices 9–14 + trim panel enhancements
+
+### Slice 9 — Project Save/Load
+- Save/load project as `vorber_project.json` via Rust commands `read_project`, `write_project`, `check_files_exist`
+- TopBar shows `[new] [open] [clear BANK] [clear BANK/SLOTn]` on left, `[filename] [status badge]` on right
+- Status badge states: `empty` / `unsaved` / `saved` / `missing (n files)`
+- Filename click → save-as dialog; unsaved badge click → overwrite if path exists, else save-as
+- `new` creates next `untitled01.json` / `untitled02.json` etc.
+- Missing file detection on load: paths checked via `check_files_exist`, cells with missing files show "file missing" badge; row play button disabled
+- `clearSlot(bank, slot)` added to store
+
+### Slices 10–13 — v0.2.0 UI redesign
+- PT Mono font applied globally
+- Paired L↔R row layout: `[▶] [name] [dur] [fmt]` · `—` · `[fmt] [dur] [name] [▶]`
+- Split pair shows `—X—` connector; clicking unlinks (converts to left-only / right-only)
+- Bank tabs with slot-count badge and colored underline bar
+- Slot navigation as 4×2 circle grid; circles show layer count, fill when >0
+- Format badge opens inline overlay (one at a time, click-outside closes); all stereo mode transitions
+- Trim panel opens by clicking duration badge (not cell selection)
+- Trim panel always visible; empty state shows "No file selected"
+- Fixed height trim panel (148px)
+- Export bar redesigned: full-width, states empty/idle/running/done; progress fill animation
+
+### Slice 14 — Real waveform rendering
+- `buildPeaks(filePath)` decodes audio via Web Audio API, computes 2000-point peak array, caches per file path
+- Canvas drawn inside `.trim-bar-bg` wrapper (avoids canvas-attribute vs CSS-position conflict)
+- `ResizeObserver` redraws on panel resize
+- Two-pass draw: grey outside selection region, light (`#d0d0d0`) inside
+- `trimDrawRef` + `redrawRef` pattern: draw effect stores draw fn in ref; separate effect `[trimStartPct, trimEndPct]` calls it on every trim drag
+
+### Trim panel additional enhancements (post-14)
+- **Linked trim propagation**: editing trim on a split pair (L+R same file) updates both cells simultaneously; header shows `BANK_SLOTn_Lx-Rx`
+- **Draggable region**: area between handles can be dragged to shift the window without changing length
+- **Trim for short files**: duration badge now always clickable; default trim length capped at `min(duration, 60)`; minimum trim length 0.5s
+- **Cell label in header**: `RED_SLOT0_L1` or `RED_SLOT0_L1-R1` format
+- **`Start` / `Length` labels** with `formatTrimTime` format: `01m40.32s` or `40.32s`
+- **Play as loop** button in trim panel header: loops trim region via `AudioBufferSourceNode` with `loop=true`, `loopStart`/`loopEnd`; shows "stop" while playing; cleanup on unmount
+- **Loop trim live update**: dragging handles or region while looping updates `loopStart`/`loopEnd` on the live source node immediately
+- **Start handle stops at min length**: end point is anchored; start handle can't slide the region when min length (0.5s) is reached — it simply stops
+
+---
+
+## 2026-03-07 — design pass: polish and consistency fixes
+
+- **Export bar background**: inner info area uses `#000000` with `align-self: stretch` so it fills the full 44px height
+- **Trim panel always rendered**: empty state (`#2b2b2b`, "No layer selected") shown when no layer is selected; `openTrimId` in store drives active state
+- **Click-outside closes trim panel**: `mousedown` listener in `TrimPanelContent` closes panel unless click lands inside `.trim-panel` or `.layer-num.in-edit` / `.layer-side.in-edit`
+- **Format overlay keeps trim panel open**: overlay-open early return in `LayerSide` now includes `in-edit` class so click-outside handler recognises it as a safe area
+- **macOS title bar height**: `tauri.conf.json` height set to 648px (620px content + 28px native title bar). Documented in `CLAUDE.md` and memory.
+- **Section heights pinned**: all sections use explicit pixel heights; `layer-section: flex:1` fills remainder — no scroll, no clipping
+- **Typography — trim pill labels**: "Start" / "Length" changed to lowercase ("start" / "length") to match Figma
+- **Close button consistency**: all three ✕ buttons (remove sample, format overlay close, trim close) now use the same Unicode character (`✕` U+2715), same 23×23px container, same `font-size: var(--font-body)`
+- **Format overlay close button size**: added `min-width: 23px; flex-shrink: 0` to prevent flex compression
+- **"split → R/L" label**: arrow symbol removed, now rendered as "split to R" / "split to L"
+- **App icon**: custom icon artwork generated from source PNG via `bunx tauri icon`
+
+---
+
+## 2026-03-06 — design-tweaker.html improvements
+
+`design-tweaker.html` is a standalone single-file token design tool (no build step) that loads `tokens.css` and `semantic.json`, renders a live preview of the Veno-Orbit app UI, and lets you edit token values with immediate visual feedback.
+
+### States tab
+- Added `states-view` panel support to `initViewTabs()`: toggling the States tab now shows/hides `#states-view` alongside the existing Screen and Components panels
+
+### Screen view: fixed 800×620px (no scaling)
+- Replaced `scalePreview()` + `ResizeObserver` transform approach with fixed `width:800px; height:620px; overflow:auto`
+- `#preview-wrap` and `#preview-scaler` both set to `800×620`; scroll appears if panel is smaller
+
+### Bank tab CSS (match App.css)
+- Replaced `border-bottom: 2px solid transparent` underline + 16px colour bar with full `border: 1px solid transparent` outline, active state uses `border-color: var(--category-accent)`
+- Tab name: `font-weight: 700`; active = `var(--fg-emphasis, #fff)`, assigned = `var(--fg-secondary, #bbb)`
+- Colour bar: `width: 100%` (full-width), `height: 3px`, no separate opacity rule
+
+### Slot circles: vertical column → 4×2 grid
+- Replaced `.p-slot-col` (flex-row left sidebar) + `.p-slot-circles` (flex column) with `.p-slot-grid` (CSS grid, 4 columns) centered above layer rows
+- `.p-main` changed from `flex-direction: row` to `flex-direction: column`
+- Added `.p-slot-hdr` label (`RED\SLOT0`) between grid and layer rows
+
+### Layer rows: 6 → 4
+- Deleted two trailing empty `.p-layer-row` elements from `#preview-wrap`
+
+### Tooltip fix
+- `mouseover` + separate `mousemove` caused tooltip to flicker: `mouseover` fires on every child element transition, hiding the tip when a child without `data-tip` was entered
+- Fix: merged into a single `mousemove` handler that calls `closest('[data-tip]')` and both finds the target and positions the tooltip in one step
+- CSS var resolution: tries `getComputedStyle(document.body)` first (overrides from `applyAll()`), falls back to `getComputedStyle(document.documentElement)` (defaults from `tokens.css`)
+- Handler registered on `preview-wrap`, `components-view`, and `states-view`

@@ -136,6 +136,119 @@ Done when: save → reopen app → load → all cells restored correctly.
 
 ---
 
+### Slice 9 (renumbered) — Project Save/Load *(deferred)*
+**Goal:** Full grid state persists to and loads from a JSON file.
+
+Tasks:
+- Save: write `vorber_project.json` with all cell assignments, trim settings, stereo strategies
+- Load: restore entire grid from file, re-validate that source paths still exist
+- "New project" clears all state
+
+Done when: save → reopen app → load → all cells restored correctly.
+
+---
+
+## v0.2.0 — UI Redesign
+
+### Slice 10 — Foundation: PT Mono font + paired row layout
+**Goal:** Typography and layer layout match Figma design. No logic changes.
+
+Tasks:
+- Bundle PT Mono Regular + Bold (woff2) in `src/assets/fonts/`
+- Apply PT Mono globally via `@font-face` in App.css
+- Replace 4×2 grid with 4 paired L↔R rows
+- Row structure: `[▶] [name] [dur badge] [fmt badge]` left · `[fmt badge] [dur badge] [name] [▶]` right
+- Empty state: "No file. drop or click" per side, drag/click still works
+- Hover → reveal X (delete) button per side
+- `—X—` connector shown when split pair active; clicking unlinks trim (unsplit, keep both files)
+
+Done when: layout matches Figma, font applied, all existing functionality still works.
+
+---
+
+### Slice 11 — Bank tabs + slot circles
+**Goal:** Navigation matches Figma design. Two new store actions.
+
+Tasks:
+- Bank tabs: add slot count badge ("X slot"), colored underline bar per bank color
+- Replace slot pagination row with 4×2 circle grid (top = slots 0–3, bottom = 4–7)
+- Circle shows assigned layer count; colored fill when >0, grey when empty
+- Add `clearBank(bank)` and `clearAllBanks()` to store
+- Context buttons top-right: "clear [BANK] bank" + "clear SLOT[n]"
+- Global top-right: "clear all banks" + "export"
+
+Done when: can navigate via circles, counts update on assign/clear, clear actions work.
+
+---
+
+### Slice 12 — Inline format controls
+**Goal:** Format badge replaces always-visible split button.
+
+Tasks:
+- Format badge on each assigned cell (shows "stereo", "mono L", "mono R", "mono")
+- Click badge → in-place overlay replaces row content; one overlay at a time; click-outside closes
+- Overlay options by state:
+  - Stereo + sum: `stereo > mono · mono L · mono R · split to R/L · cancel`
+  - Stereo + split-L: `flatten · keep L · keep R · split to R · cancel`
+  - Stereo + split-R: `flatten · keep L · keep R · split to L · cancel`
+  - Mono: badge non-interactive
+- "flatten" = revert to sum + clear counterpart if same file
+
+Done when: all stereo mode transitions work via inline overlay, no regression on export.
+
+---
+
+### Slice 13 — Trim panel redesign (placeholder waveform)
+**Goal:** Trim panel matches Figma. Real waveform deferred.
+
+Tasks:
+- Trim opens by clicking duration badge (not by cell selection)
+- Header: `[cell name] · [format] · Start [MM:SS] · length [XX.XXs]` + X close
+- Waveform area: flat color bar (no decoding) + draggable green start / orange end handles
+- Handles update `trim.start` / `trim.length` in store
+- Footer: source filename + total file length
+- Trim panel replaces current slider-based panel
+
+Done when: trim open/close works via duration click, handles update trim state, export uses updated values.
+
+---
+
+### Slice 14 — Real waveform rendering *(v0.3.0)*
+**Goal:** Waveform area shows actual audio peaks.
+
+Tasks:
+- Decode audio via `AudioContext.decodeAudioData` on trim panel open
+- Render channel peak data to `<canvas>` (downsampled to canvas width)
+- Green start / orange end markers overlay the canvas, draggable
+- Cache decoded buffer per file path (avoid re-decode on re-open)
+
+Done when: waveform renders for all supported formats, markers drag correctly.
+
+---
+
+### Slice 15 — GitHub Actions auto-build *(v0.3.0)*
+**Goal:** Push a tag → binaries appear as release assets automatically.
+
+Tasks:
+- `.github/workflows/release.yml`: trigger on `v*` tags
+- Matrix: macOS (aarch64), Windows (x86_64)
+- Upload `.dmg` and `.msi` to GitHub release
+
+---
+
+### Slice 16 — Trim panel playhead
+**Goal:** Waveform shows a playhead position line during preview and loop playback.
+
+Tasks:
+- While loop is playing in TrimPanelContent, animate a vertical line over the waveform canvas showing current playback position
+- Position derived from `AudioContext.currentTime` minus the source start offset, wrapped within the trim window
+- Line redraws via `requestAnimationFrame` loop; stops when playback stops
+- Same playhead shown for row-level preview when trim panel is open for that cell
+
+Done when: playhead moves smoothly during loop and row preview while trim panel is open.
+
+---
+
 ## Status
 
 | Slice | Name | Status |
@@ -148,4 +261,11 @@ Done when: save → reopen app → load → all cells restored correctly.
 | 6 | Trim Controls | done |
 | 7 | Stereo Handling | done |
 | 8 | Export | done |
-| 9 | Project Save/Load | deferred |
+| 9 | Project Save/Load | done |
+| 10 | Font + Paired Row Layout | done |
+| 11 | Bank tabs + Slot circles | done |
+| 12 | Inline format controls | done |
+| 13 | Trim panel redesign | done |
+| 14 | Real waveform rendering | done |
+| 15 | GitHub Actions auto-build | deferred |
+| 16 | Trim panel playhead | pending |

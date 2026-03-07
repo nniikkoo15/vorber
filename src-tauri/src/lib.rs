@@ -232,6 +232,24 @@ async fn export_cells(
     })
 }
 
+#[tauri::command]
+fn read_project(path: String) -> Result<String, String> {
+    fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn write_project(path: String, content: String) -> Result<(), String> {
+    if let Some(parent) = Path::new(&path).parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn check_files_exist(paths: Vec<String>) -> Vec<String> {
+    paths.into_iter().filter(|p| !Path::new(p).exists()).collect()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -241,7 +259,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             check_export_conflicts,
-            export_cells
+            export_cells,
+            read_project,
+            write_project,
+            check_files_exist
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

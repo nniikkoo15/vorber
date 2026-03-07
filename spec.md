@@ -52,25 +52,44 @@ Example: `BLUE_SLOT0_L0.wav`
 * Display: filename, duration, stereo/mono indicator
 * Play/pause preview
 * Clear/remove file
-* Trim controls **only when needed**:
+* Trim controls accessible for all files via duration badge click:
 
-  * If file duration ≤ 60s: no trim UI (or disabled)
-  * If duration > 60s: show trim window
-
-    * Start time (slider + numeric input)
-    * Window length (default 60s, allow <=60)
-    * Convenience buttons: “Start”, “Middle”, “End (last 60s)”
+  * Files > 60s: duration badge shows in red until trimmed
+  * All files: clicking duration badge opens trim panel
+  * Trim panel shows waveform with draggable start (green) and end (orange) handles
+  * Start handle: drags left (extends) or right (shortens); stops when length reaches minimum — does not slide the window
+  * End handle: drags right (extends) or left (shortens); stops when length reaches minimum
+  * Dragging the region between handles shifts the window without changing length
+  * Minimum trim length: 0.5s; maximum: 60s (capped at file duration if shorter)
+  * Loop playback available in trim panel to preview the selected region
+  * Split pairs (L+R, same file) share trim edits — changing one updates both
 
 ### Stereo handling
 
-When a dropped file is stereo:
+When a dropped file is stereo, the format badge shows **”stereo”** and is clickable. Clicking opens an inline overlay with four options:
 
-* Default behavior: **sum to mono** for the assigned cell (0.5L + 0.5R)
-* Show a button: **“Split stereo → fill matching Right layer”**
+| Option | `stereoMode` value | Export behaviour |
+|---|---|---|
+| sum to mono | `”sum”` | mix 0.5L + 0.5R → mono |
+| mono L | `”left-only”` | left channel only → mono |
+| mono R | `”right-only”` | right channel only → mono |
+| split → R/L | `”split-L”` + `”split-R”` | L cell uses left channel, R cell uses right channel |
 
-  * If file placed in `Lx`: on split, export left channel to `Lx` and right channel to `Rx`
-  * Same trim window applies to both
-* (Optional) also allow “use left only” / “use right only” as mono strategy, but v1 can keep just sum + split
+**Badge labels by mode:**
+- `undefined` (never chosen) → **stereo** (interactive)
+- `”sum”` → **mono** (interactive — can reopen overlay)
+- `”left-only”` → **mono L** (interactive)
+- `”right-only”` → **mono R** (interactive)
+- `”split-L”` → **L** (highlighted, interactive)
+- `”split-R”` → **R** (highlighted, interactive)
+- channels = 1 → **mono** (non-interactive, truly mono file)
+
+**Split pair rules:**
+- Splitting from an L cell assigns `split-L` to this cell and `split-R` to the matching R cell (same file, same trim)
+- The `—X—` connector appears between the two cells when they are a split pair
+- Clicking `—X—` **unlinks** without clearing files: L cell becomes `left-only`, R cell becomes `right-only`
+- After unlink, each cell is independent; changing one does not affect the other
+- Overlay actions that switch away from split (`sum to mono`, `mono L`, `mono R`) only clear the counterpart cell if it is still in a split state and shares the same file path
 
 ### Export
 
@@ -107,12 +126,14 @@ For each filled cell:
 
 1. Decode source file (support wav/aiff/flac/mp3/m4a, etc.)
 2. Apply trim window (start, duration)
-3. If split mode:
+3. Apply stereo strategy:
 
-   * L cell uses left channel only
-   * R cell uses right channel only
-     Else:
-   * sum stereo to mono (or pass through if already mono)
+   * `split-L` → use left channel only
+   * `split-R` → use right channel only
+   * `left-only` → use left channel only
+   * `right-only` → use right channel only
+   * `sum` or `undefined` → mix 0.5L + 0.5R
+   * mono source → pass through unchanged
 4. Apply tiny fades to avoid clicks (default 5 ms in/out)
 5. Resample to 48kHz
 6. Convert to 16-bit PCM

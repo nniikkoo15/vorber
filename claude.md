@@ -16,3 +16,7 @@ Not building yet: [everything after current slice]
 - If spec is ambiguous, ask before assuming
 - If something implies a concept change, flag it and stop
 - At session end, append a log entry to log.md
+- After fixing a recurring mistake or learning something non-obvious about the project, save it to memory (`~/.claude/projects/.../memory/MEMORY.md`)
+
+## Known platform gotchas
+- **macOS Tauri window height**: `height` in tauri.conf.json is the OUTER window including the native title bar (~28px). Webview content = height − 28px. If Figma content = 620px, set height = 648px. Never calculate window height without accounting for this.

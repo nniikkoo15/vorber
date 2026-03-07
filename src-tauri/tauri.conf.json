@@ -14,7 +14,12 @@
       {
         "title": "Vorber",
         "width": 800,
-        "height": 600
+        "height": 648,
+        "minWidth": 800,
+        "minHeight": 648,
+        "maxWidth": 800,
+        "maxHeight": 648,
+        "resizable": false
       }
     ],
     "security": {
