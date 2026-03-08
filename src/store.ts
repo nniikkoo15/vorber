@@ -64,6 +64,8 @@ interface StoreState {
   setOpenFmtOverlayId: (id: string | null) => void;
   openTrimId: string | null;
   setOpenTrimId: (id: string | null) => void;
+  moveCell: (from: CellKey, to: CellKey) => void;
+  swapCells: (a: CellKey, b: CellKey) => void;
   setProjectMeta: (path: string | null, name: string) => void;
   setDirty: (dirty: boolean) => void;
   setMissingPaths: (paths: string[]) => void;
@@ -151,6 +153,28 @@ export const useStore = create<StoreState>((set, get) => ({
       // clear counterpart only if it was set by this split (same file)
       if (partner?.filePath === cell.filePath) delete newCells[partnerId];
       return { cells: newCells, isDirty: true };
+    }),
+  moveCell: (from, to) =>
+    set((s) => {
+      const fromId = cellId(from.bank, from.slot, from.layer);
+      const toId = cellId(to.bank, to.slot, to.layer);
+      const cell = s.cells[fromId];
+      if (!cell) return s;
+      const cells = { ...s.cells, [toId]: cell };
+      delete cells[fromId];
+      return { cells, isDirty: true };
+    }),
+  swapCells: (a, b) =>
+    set((s) => {
+      const aId = cellId(a.bank, a.slot, a.layer);
+      const bId = cellId(b.bank, b.slot, b.layer);
+      const aCell = s.cells[aId];
+      const bCell = s.cells[bId];
+      if (!aCell && !bCell) return s;
+      const cells = { ...s.cells };
+      if (aCell) cells[bId] = aCell; else delete cells[bId];
+      if (bCell) cells[aId] = bCell; else delete cells[aId];
+      return { cells, isDirty: true };
     }),
   setPlayingCellId: (id) => set({ playingCellId: id }),
   loopingCellId: null,

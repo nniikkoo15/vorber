@@ -5,6 +5,7 @@ cross-platform desktop “companion” app that lets me assign audio files into 
 - `spec.md` — what the app is and does, read this first
 - `slices.md` — implementation plan and progress
 - `log.md` — change history, append only
+- `PLAYBOOK.md` — build strategy, spec discipline, UX heuristics, anti-patterns, release checklist
 
 ## Current work
 Currently on: Slice 9 — Project Save/Load (deferred; MVP complete)

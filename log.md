@@ -227,3 +227,16 @@ Before export begins, warn the user about: (1) layers with trimmed length still 
 - **Export action underlines**: "export!", "export anyway!", "wait a sec!" all underlined
 - **Filename hover underline**: hovering the filename underlines it; hover area constrained to text width only
 - **Right-side filename alignment**: right channel filename now right-aligned to the layer button
+
+---
+
+## 2026-03-08 — v0.1.5: Slices 15, 17, 21, 26 + ghost tooltip drag UX + PLAYBOOK
+
+### Features
+- **GitHub Actions release workflow** (Slice 15): `.github/workflows/release.yml` — pushes a `v*` tag → builds macOS aarch64 DMG and Windows x86_64 MSI automatically via `tauri-apps/tauri-action`; uploads to a draft GitHub release
+- **React ErrorBoundary** (Slice 17): `src/ErrorBoundary.tsx` wraps the app; any render error shows a dark fallback UI with the error message, stack trace, and a "try again" button instead of a blank window
+- **Layer drag-to-rearrange** (Slice 26): click-hold the body of an assigned layer side and drag to another layer side in the same slot; drop on empty = move; drop on loaded = swap; Option (⌥)+drop on empty = copy (origin stays); interactive children (filename, badges, ✕) block accidental drag; split pairs auto-broken to mono L/R before move; dragging cell fades to 0.4 opacity; drop target brightens; trim panel closes on drag start if open for the dragged cell. Implemented via pointer events (mousedown/mousemove/mouseup) — WKWebView does not reliably support HTML5 drag-and-drop for custom elements.
+- **Ghost tooltip drag text**: tooltip follows cursor during layer drag with contextual text: `moving Lx file.wav`, `moving Lx file.wav > Ly`, `swapping Lx file.wav <> Ly file2.wav`, `copying Lx file.wav`, `copying Lx file.wav > Ly`
+
+### Meta
+- **PLAYBOOK.md**: new document capturing higher-order build principles, spec discipline, UX heuristics, technical heuristics, pre-spec and pre-code question checklists, anti-patterns, and release checklist — updated collaboratively and linked from CLAUDE.md

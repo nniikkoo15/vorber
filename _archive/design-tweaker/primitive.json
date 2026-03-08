@@ -1,0 +1,63 @@
+{
+  "gray": {
+    "0":    { "value": "#000000", "type": "color", "description": "Pure black. Top bar background." },
+    "50":   { "value": "#111111", "type": "color", "description": "Near-black. Connector background, play-btn text." },
+    "100":  { "value": "#171717", "type": "color", "description": "Very dark. Trim panel background (sunken)." },
+    "150":  { "value": "#1a1a1a", "type": "color", "description": "App background BASE." },
+    "200":  { "value": "#1e1e1e", "type": "color", "description": "Surface. Export buttons, waveform canvas." },
+    "250":  { "value": "#252525", "type": "color", "description": "Raised surface. Button bg, dark badge bg." },
+    "300":  { "value": "#2e2e2e", "type": "color", "description": "Hover + borders. Consolidates #2a2a2a / #2e2e2e / #333." },
+    "400":  { "value": "#444444", "type": "color", "description": "Faint text, disabled, empty labels." },
+    "500":  { "value": "#666666", "type": "color", "description": "Muted text, badge backgrounds. Consolidates #555 / #666." },
+    "550":  { "value": "#808080", "type": "color", "description": "Mid-tone empty state — between gray.500/600. Layer-side unassigned bg." },
+    "600":  { "value": "#888888", "type": "color", "description": "Subtle text, layer-side bg. Consolidates #777 / #888." },
+    "700":  { "value": "#bbbbbb", "type": "color", "description": "Tertiary text. Consolidates #bbb / #ccc." },
+    "800":  { "value": "#dddddd", "type": "color", "description": "Secondary text, badge text." },
+    "900":  { "value": "#eeeeee", "type": "color", "description": "Primary text. Consolidates #ddd / #e0e0e0 / #eee." },
+    "950":  { "value": "#e8e8e8", "type": "color", "description": "Near-white — play button hover bg." },
+    "1000": { "value": "#ffffff", "type": "color", "description": "High emphasis, strong, inverse." }
+  },
+  "green": {
+    "900": { "value": "#0d3318", "type": "color", "description": "Darkest green. Drag-over tint, bank dim." },
+    "800": { "value": "#1a2a1a", "type": "color", "description": "Very dark green. Status saved bg." },
+    "750": { "value": "#2a3a2a", "type": "color", "description": "Very dark green border — saved state." },
+    "700": { "value": "#2e4a2e", "type": "color", "description": "Dark green. Accent action bg." },
+    "600": { "value": "#3a5e3a", "type": "color", "description": "Mid-dark green. Accent action hover bg." },
+    "550": { "value": "#4a7a4a", "type": "color", "description": "Mid-green text — saved state on dark green bg." },
+    "400": { "value": "#27ae60", "type": "color", "description": "Brand green. Playing, success, trim start handle." },
+    "300": { "value": "#2ecc71", "type": "color", "description": "Light green. Hover on success accent." },
+    "50":  { "value": "#c8f0d4", "type": "color", "description": "Light green — drag-over valid target bg." }
+  },
+  "red": {
+    "900": { "value": "#4a160f", "type": "color", "description": "Darkest red. Bank dim." },
+    "850": { "value": "#5a2020", "type": "color", "description": "Dark red bg — warn badge (dur-badge.over60)." },
+    "800": { "value": "#6b1e14", "type": "color", "description": "Very dark red. Status missing bg." },
+    "700": { "value": "#8b2a1a", "type": "color", "description": "Dark red. Status missing border." },
+    "500": { "value": "#c0392b", "type": "color", "description": "Brand red. Destructive action bg." },
+    "300": { "value": "#ff8080", "type": "color", "description": "Light red. Warn text (over-60 badge)." },
+    "200": { "value": "#ffb3a7", "type": "color", "description": "Pale red. Status missing text." }
+  },
+  "orange": {
+    "900": { "value": "#4a2208", "type": "color", "description": "Dark orange. Bank dim." },
+    "400": { "value": "#e67e22", "type": "color", "description": "Brand orange. Trim end handle, unlink hover." }
+  },
+  "size": {
+    "1":  { "value": "1px",  "type": "dimension" },
+    "2":  { "value": "2px",  "type": "dimension" },
+    "3":  { "value": "3px",  "type": "dimension" },
+    "4":  { "value": "4px",  "type": "dimension" },
+    "6":  { "value": "6px",  "type": "dimension" },
+    "8":  { "value": "8px",  "type": "dimension" },
+    "12": { "value": "12px", "type": "dimension" },
+    "16": { "value": "16px", "type": "dimension" },
+    "24": { "value": "24px", "type": "dimension" }
+  },
+  "fontSize": {
+    "xs":   { "value": "10px", "type": "fontSizes" },
+    "sm":   { "value": "11px", "type": "fontSizes" },
+    "md":   { "value": "12px", "type": "fontSizes" },
+    "base": { "value": "13px", "type": "fontSizes" },
+    "lg":   { "value": "14px", "type": "fontSizes" },
+    "xl":   { "value": "16px", "type": "fontSizes" }
+  }
+}

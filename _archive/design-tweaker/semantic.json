@@ -1,0 +1,151 @@
+{
+  "bg": {
+    "chrome":       { "value": "{gray.0}",    "type": "color", "description": "Top/bottom bars — pure black chrome" },
+    "well":         { "value": "{gray.100}",  "type": "color", "description": "Recessed inputs, trim panel (deepest dark)" },
+    "canvas":       { "value": "{gray.150}",  "type": "color", "description": "Outer workbench — main app background" },
+    "surface":      { "value": "{gray.200}",  "type": "color", "description": "Main panels — slightly above canvas" },
+    "elevated":     { "value": "{gray.250}",  "type": "color", "description": "Raised interactive elements — buttons, badges" },
+    "hover":        { "value": "{gray.300}",  "type": "color", "description": "Hover delta — +1 step from elevated" },
+    "mid":          { "value": "{gray.600}",  "type": "color", "description": "Mid-tone — filled layer sides" },
+    "midEmpty":     { "value": "{gray.550}",  "type": "color", "description": "Empty layer sides — unassigned (#808080)" },
+    "bright":       { "value": "{gray.1000}", "type": "color", "description": "Play button background (white)" },
+    "playBtnHover": { "value": "{gray.950}",  "type": "color", "description": "Layer play button hover bg (near-white dimmed)." }
+  },
+
+  "fg": {
+    "emphasis":  { "value": "{gray.1000}", "type": "color", "description": "Maximum contrast — hover labels, active states" },
+    "primary":   { "value": "{gray.900}",  "type": "color", "description": "Default body text" },
+    "secondary": { "value": "{gray.700}",  "type": "color", "description": "Supporting text — button labels" },
+    "tertiary":  { "value": "{gray.600}",  "type": "color", "description": "Subdued — captions, bank tab count" },
+    "faint":     { "value": "{gray.400}",  "type": "color", "description": "Disabled, empty labels" },
+    "inverse":   { "value": "{gray.50}",   "type": "color", "description": "Dark text on bright surfaces (play btn)" }
+  },
+
+  "border": {
+    "default": { "value": "{gray.300}",  "type": "color", "description": "Standard stroke — trim panel, buttons" },
+    "subtle":  { "value": "{gray.250}",  "type": "color", "description": "Hairline divider — connector, export dividers" },
+    "muted":   { "value": "{gray.400}",  "type": "color", "description": "Muted — hover-state borders" },
+    "accent":  { "value": "{green.400}", "type": "color", "description": "Accent — success actions" },
+    "error":   { "value": "{red.700}",   "type": "color", "description": "Error / missing state" }
+  },
+
+  "badge": {
+    "bg":       { "value": "{gray.500}", "type": "color", "description": "dur-badge and fmt-badge background." },
+    "text":     { "value": "{gray.800}", "type": "color", "description": "dur-badge and fmt-badge text." },
+    "splitBg":  { "value": "{gray.900}", "type": "color", "description": "fmt-badge.split background (near-white)." },
+    "splitText":{ "value": "{gray.50}",  "type": "color", "description": "fmt-badge.split text." }
+  },
+
+  "status": {
+    "savedBg":      { "value": "{green.800}", "type": "color" },
+    "savedText":    { "value": "{green.550}", "type": "color", "description": "Mid-green text on dark green." },
+    "savedBorder":  { "value": "{green.750}", "type": "color", "description": "Very dark green border — saved state." },
+    "missingBg":    { "value": "{red.800}",   "type": "color" },
+    "missingText":  { "value": "{red.200}",   "type": "color" },
+    "missingBorder":{ "value": "{red.700}",   "type": "color" }
+  },
+
+  "accent": {
+    "successBg":       { "value": "{green.700}", "type": "color", "description": "fmt-action.accent background." },
+    "successBorder":   { "value": "{green.400}", "type": "color", "description": "fmt-action.accent border." },
+    "successText":     { "value": "{green.400}", "type": "color", "description": "fmt-action.accent text." },
+    "successHoverBg":  { "value": "{green.600}", "type": "color", "description": "fmt-action.accent:hover background." },
+    "successHoverText":{ "value": "{green.300}", "type": "color", "description": "fmt-action.accent:hover text." },
+    "playing":         { "value": "{green.400}", "type": "color", "description": "layer-num.playing, export bar fill, done btn." },
+    "playingHover":    { "value": "{green.300}", "type": "color", "description": "export-action-btn.done:hover." },
+    "destructive":     { "value": "{red.500}",   "type": "color", "description": "clear-side-btn:hover, layer-num.missing text." },
+    "warnText":        { "value": "{red.300}",   "type": "color", "description": "dur-badge.over60 text." },
+    "warnBg":          { "value": "{red.850}",   "type": "color", "description": "dur-badge.over60 bg." },
+    "trimHandleStart": { "value": "{green.400}", "type": "color", "description": "Trim panel start handle (green)." },
+    "trimHandleEnd":   { "value": "{orange.400}","type": "color", "description": "Trim panel end handle (orange)." },
+    "unlinkHover":     { "value": "{orange.400}","type": "color", "description": "unlink-btn:hover color." }
+  },
+
+  "dragOver": {
+    "left":  { "value": "{green.50}",    "type": "color", "description": "layer-side.drag-over.left. Light green — intentionally bright for visibility." },
+    "right": { "value": "{green.900}",   "type": "color", "description": "layer-side.drag-over.right. Dark green tint." }
+  },
+
+  "canvas": {
+    "barOuter": { "value": "#3a3a3a",               "type": "color", "description": "Waveform bars outside trim region. Canvas-only." },
+    "barInner": { "value": "#d0d0d0",               "type": "color", "description": "Waveform bars inside trim region. Canvas-only." },
+    "playhead": { "value": "rgba(255,255,255,0.85)","type": "color", "description": "Playhead line. Canvas-only." },
+    "region":   { "value": "rgba(255,255,255,0.12)","type": "color", "description": "Semi-transparent trim region overlay." }
+  },
+
+  "height": {
+    "topbar":     { "value": "41px",  "type": "dimension" },
+    "btn":        { "value": "23px",  "type": "dimension" },
+    "bankTabs":   { "value": "54px",  "type": "dimension" },
+    "slotCircle": { "value": "32px",  "type": "dimension" },
+    "layerRow":   { "value": "45px",  "type": "dimension" },
+    "trimPanel":  { "value": "126px", "type": "dimension" },
+    "exportBar":  { "value": "44px",  "type": "dimension" }
+  },
+
+  "spacing": {
+    "appPad":    { "value": "12px", "type": "dimension" },
+    "gap":       { "value": "4px",  "type": "dimension" },
+    "badgePad":  { "value": "4px",  "type": "dimension" },
+    "sidePad":   { "value": "12px", "type": "dimension" },
+    "connector": { "value": "34px", "type": "dimension" }
+  },
+
+  "fontSize": {
+    "xs":   { "value": "{fontSize.xs}",   "type": "fontSizes" },
+    "sm":   { "value": "{fontSize.sm}",   "type": "fontSizes" },
+    "md":   { "value": "{fontSize.md}",   "type": "fontSizes" },
+    "base": { "value": "{fontSize.base}", "type": "fontSizes" },
+    "lg":   { "value": "{fontSize.lg}",   "type": "fontSizes" },
+    "xl":   { "value": "{fontSize.xl}",   "type": "fontSizes" }
+  },
+
+  "type": {
+    "label": { "value": "{fontSize.xs}", "type": "fontSizes", "description": "10px — all UI labels, badges, buttons" },
+    "body":  { "value": "{fontSize.md}", "type": "fontSizes", "description": "12px — filenames, content text" }
+  },
+
+  "borderWidth":  { "value": "1px",  "type": "dimension" },
+
+  "borderRadius": {
+    "sm":   { "value": "2px",  "type": "dimension" },
+    "md":   { "value": "3px",  "type": "dimension" },
+    "lg":   { "value": "4px",  "type": "dimension" },
+    "full": { "value": "50%",  "type": "dimension" }
+  },
+
+  "category": {
+    "bank": {
+      "red":    { "value": "#c0392b", "type": "color" },
+      "green":  { "value": "#27ae60", "type": "color" },
+      "blue":   { "value": "#2980b9", "type": "color" },
+      "white":  { "value": "#bdc3c7", "type": "color" },
+      "cyan":   { "value": "#16a085", "type": "color" },
+      "orange": { "value": "#e67e22", "type": "color" },
+      "yellow": { "value": "#f1c40f", "type": "color" },
+      "pink":   { "value": "#e91e8c", "type": "color" }
+    }
+  },
+
+  "interactive": {
+    "bg":          { "value": "{gray.250}", "type": "color", "description": "Default bg — buttons, inactive tabs" },
+    "fg":          { "value": "{gray.700}", "type": "color", "description": "Default text on interactive bg" },
+    "bgHover":     { "value": "{gray.300}", "type": "color", "description": "Hover — +1 step lighter than bg" },
+    "bgPressed":   { "value": "{gray.200}", "type": "color", "description": "Pressed — -1 step darker (sink)" },
+    "bgDisabled":  { "value": "{gray.100}", "type": "color", "description": "Disabled — below canvas, de-emphasized" },
+    "border":      { "value": "{gray.300}", "type": "color", "description": "Default border on interactive elements" },
+    "borderHover": { "value": "{gray.400}", "type": "color", "description": "Border on hover — slightly more visible" }
+  },
+
+  "tab": {
+    "bg":               { "value": "{gray.150}",  "type": "color", "description": "Tab strip background — canvas level (chrome reserved for top/bottom bars only)" },
+    "fg":               { "value": "{gray.400}",  "type": "color", "description": "Inactive tab text" },
+    "fgAssigned":       { "value": "{gray.600}",  "type": "color", "description": "Assigned tab — tertiary text" },
+    "fgActive":         { "value": "{gray.700}",  "type": "color", "description": "Active tab — secondary text" },
+    "bgSelectedOverlay":{ "value": "rgba(255,255,255,0.03)", "type": "color", "description": "Subtle tint on selected tab" },
+    "selected": {
+      "underline": { "value": "var(--category-accent)",         "type": "color", "description": "Underline on selected tab — resolved from per-instance --category-accent" },
+      "outline":   { "value": "var(--category-accent-outline)", "type": "color", "description": "Outline on selected tab — 35% alpha, precomputed in App.tsx" }
+    }
+  }
+}

@@ -107,6 +107,19 @@ Click anywhere on an empty layer side to open the native file picker. Select a f
 
 Hover over an assigned layer side to reveal the **✕** button. Click it to remove the file and clear the layer.
 
+### Rearranging layers
+
+Click and hold the body of an assigned layer side (not on the filename, duration badge, format badge, or ✕) and drag it to another layer side in the same slot.
+
+- **Drop on empty layer** — moves the file to the destination; origin becomes empty
+- **Drop on loaded layer** — swaps the two layers; each takes the other's file and settings
+- **Hold Option (⌥) + drop on empty layer** — copies the file to the destination; origin is unchanged
+- **Hold Option (⌥) + drop on loaded layer** — no action (copy to a loaded slot is ambiguous)
+
+A ghost tooltip follows the cursor showing the current action: `moving L0 file.wav`, `moving L0 file.wav > L3`, `swapping L0 file.wav <> L2 file02.wav`, or `copying L0 file.wav > L3`.
+
+All cell data transfers with the drag: file path, duration, trim settings, and stereo mode. If the dragged cell is a stereo split pair, the split is broken before moving (the moved cell retains its file but reverts to the appropriate mono mode).
+
 ### Supported formats
 
 WAV, AIFF, FLAC, MP3, M4A. All formats are converted to the required WAV output during export.
@@ -233,7 +246,14 @@ The export bar runs across the bottom of the window.
 
 ### Starting an export
 
-Click **Export**. A native folder picker opens — select your SD card root or any output folder.
+Click **Export**. If any assigned layers have stereo files set to sum-to-mono, or files longer than 60 seconds that haven't been trimmed into range, a warning bar appears first:
+
+- **"N files will be summed to mono"** — stereo files that will be downmixed on export
+- **"N files will be trimmed to 60s"** — files whose trim window still exceeds 60 seconds
+
+Click **export anyway!** to proceed, or **wait a sec!** to return and adjust settings.
+
+After dismissing any warnings, a native folder picker opens — select your SD card root or any output folder.
 
 If the destination already contains files matching the expected output names, you will be asked:
 
@@ -295,6 +315,9 @@ The export bar shows a progress fill and a count of files processed. If any file
 | Open format overlay | Click format badge (stereo/mono/mono L/mono R) |
 | Close format overlay | Click ✕ in overlay, or click outside |
 | Unlink split pair | Click —X— connector |
+| Move layer | Click-hold layer body → drag → release on empty layer |
+| Swap layers | Click-hold layer body → drag → release on loaded layer |
+| Copy layer | Option (⌥) + click-hold layer body → drag → release on empty layer |
 | Navigate bank | Click bank tab |
 | Navigate slot | Click slot circle |
 | New project | Click new in top bar |
@@ -335,4 +358,4 @@ Use of Vorber is at your own risk. The author(s) make no warranties regarding co
 
 ---
 
-*Vorber v0.1.x — an independent companion utility for the Veno-Orbit eurorack module by Venus Instruments*
+*Vorber v0.1.5 — an independent companion utility for the Veno-Orbit eurorack module by Venus Instruments*

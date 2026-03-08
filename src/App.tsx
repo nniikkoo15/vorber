@@ -4,7 +4,7 @@ import { readFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { BANKS, SLOTS, LAYERS, useStore, type Bank, type Slot, type Layer, type TrimSettings, type CellData } from "./store";
+import { BANKS, SLOTS, LAYERS, useStore, type Bank, type Slot, type Layer, type TrimSettings, type CellData, type StereoMode } from "./store";
 import "./App.css";
 
 // Shared audio context + gain node for immediate silence on stop
@@ -13,6 +13,62 @@ const previewGain = previewCtx.createGain();
 previewGain.connect(previewCtx.destination);
 let playingSource: AudioBufferSourceNode | null = null;
 let isDecoding = false;
+
+// Pointer-event drag state (replaces HTML5 DnD, which is unreliable in WKWebView)
+let pDragSrc: string | null = null;
+let pDragStartX = 0;
+let pDragStartY = 0;
+let pDragActive = false;
+let pDragGhost: HTMLElement | null = null;
+
+function pClearDragOver() {
+  document.querySelectorAll(".layer-side.drag-over").forEach((c) => {
+    c.classList.remove("drag-over");
+  });
+}
+
+function pDragCleanup() {
+  if (pDragSrc) {
+    (document.querySelector(`[data-cell-id="${pDragSrc}"]`) as HTMLElement | null)?.classList.remove("dragging");
+  }
+  pClearDragOver();
+  pDragGhost?.remove();
+  pDragGhost = null;
+  pDragSrc = null;
+  pDragActive = false;
+}
+
+function performCellDrop(srcId: string, destId: string, cmdKey: boolean) {
+  const [srcBankStr, srcSlotStr, srcLayerStr] = srcId.split(":");
+  const srcBank = srcBankStr as Bank;
+  const srcSlot = parseInt(srcSlotStr) as Slot;
+  const srcLayer = srcLayerStr as Layer;
+  const srcKey = { bank: srcBank, slot: srcSlot, layer: srcLayer };
+  const s = useStore.getState();
+  const srcCell = s.cells[srcId];
+  if (!srcCell) return;
+  if (srcCell.stereoMode === "split-L" || srcCell.stereoMode === "split-R") {
+    const num = parseInt(srcLayer[1]);
+    const partnerLayer = (srcLayer.startsWith("L") ? `R${num}` : `L${num}`) as Layer;
+    const partner = s.cells[`${srcBank}:${srcSlotStr}:${partnerLayer}`];
+    const newMode: StereoMode = srcLayer.startsWith("L") ? "left-only" : "right-only";
+    s.assignFile(srcKey, { ...srcCell, stereoMode: newMode });
+    if (partner?.filePath === srcCell.filePath) s.clearCell({ bank: srcBank, slot: srcSlot, layer: partnerLayer });
+  }
+  if (s.openTrimId === srcId) s.setOpenTrimId(null);
+  const s2 = useStore.getState();
+  const [destBankStr, destSlotStr, destLayerStr] = destId.split(":");
+  const destKey = { bank: destBankStr as Bank, slot: parseInt(destSlotStr) as Slot, layer: destLayerStr as Layer };
+  const destCell = s2.cells[destId];
+  if (cmdKey && destCell) return; // Option + loaded target = no action
+  if (cmdKey && !destCell) {
+    s2.assignFile(destKey, s2.cells[srcId]!);
+  } else if (destCell) {
+    s2.swapCells(srcKey, destKey);
+  } else {
+    s2.moveCell(srcKey, destKey);
+  }
+}
 
 function stopPreview() {
   previewGain.gain.cancelScheduledValues(previewCtx.currentTime);
@@ -397,11 +453,69 @@ function LayerSide({ bank, slot, layer, side, isInEdit }: LayerSideProps) {
   ) : null;
   const missingEl = <span className="file-missing-badge">file missing</span>;
 
+  function handleMouseDown(e: React.MouseEvent) {
+    if ((e.target as HTMLElement).closest("button")) return;
+    e.preventDefault();
+    const srcId = id;
+    pDragSrc = srcId;
+    pDragStartX = e.clientX;
+    pDragStartY = e.clientY;
+    pDragActive = false;
+    const onMove = (ev: MouseEvent) => {
+      if (!pDragSrc) return;
+      if (!pDragActive && Math.hypot(ev.clientX - pDragStartX, ev.clientY - pDragStartY) > 5) {
+        pDragActive = true;
+        (document.querySelector(`[data-cell-id="${srcId}"]`) as HTMLElement | null)?.classList.add("dragging");
+        pDragGhost = document.createElement("div");
+        pDragGhost.className = "pointer-drag-ghost";
+        pDragGhost.textContent = `${ev.altKey ? "copying" : "moving"} ${layer} ${cell?.fileName ?? ""}`;
+        document.body.appendChild(pDragGhost);
+      }
+      if (pDragActive) {
+        if (pDragGhost) { pDragGhost.style.left = `${ev.clientX + 12}px`; pDragGhost.style.top = `${ev.clientY - 10}px`; }
+        pClearDragOver();
+        const target = document.elementFromPoint(ev.clientX, ev.clientY)?.closest("[data-cell-id]") as HTMLElement | null;
+        if (target && target.dataset.cellId !== srcId) {
+          const targetId = target.dataset.cellId!;
+          const targetCell = useStore.getState().cells[targetId];
+          const targetLayer = targetId.split(":")[2];
+          if (targetCell && ev.altKey) {
+            // Option + loaded target = no action, no overlay
+          } else {
+            target.classList.add("drag-over");
+            if (pDragGhost) {
+              if (targetCell) {
+                pDragGhost.textContent = `swapping ${layer} ${cell?.fileName ?? ""} <> ${targetLayer} ${targetCell.fileName}`;
+              } else {
+                pDragGhost.textContent = `${ev.altKey ? "copying" : "moving"} ${layer} ${cell?.fileName ?? ""} > ${targetLayer}`;
+              }
+            }
+          }
+        } else if (pDragGhost) {
+          pDragGhost.textContent = `${ev.altKey ? "copying" : "moving"} ${layer} ${cell?.fileName ?? ""}`;
+        }
+      }
+    };
+    const onUp = (ev: MouseEvent) => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      if (!pDragActive) { pDragCleanup(); return; }
+      const target = document.elementFromPoint(ev.clientX, ev.clientY)?.closest("[data-cell-id]") as HTMLElement | null;
+      const destId = target?.dataset.cellId;
+      const savedSrc = pDragSrc;
+      pDragCleanup();
+      if (savedSrc && destId && destId !== savedSrc) performCellDrop(savedSrc, destId, ev.altKey);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }
+
   return (
     <div
       data-cell-id={id}
       className={`layer-side ${side} assigned${isSelected ? " selected" : ""}${isMissing ? " missing" : ""}${isInEdit ? " in-edit" : ""}`}
       onClick={handleClick}
+      onMouseDown={handleMouseDown}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => e.preventDefault()}
     >

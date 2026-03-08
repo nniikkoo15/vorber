@@ -420,6 +420,66 @@ Done when: user can combine 2–4 source files into one layer slot and export a 
 
 ---
 
+### Slice 26 — Layer drag-to-rearrange *(future)*
+**Goal:** User can drag a loaded layer side by its surface area and drop it onto another layer side to move or swap samples, including all associated trim and stereo settings.
+
+Tasks:
+
+**Drag initiation**
+- Click and hold on the body of an assigned layer side (not on the filename, duration badge, format badge, or ✕ button) begins a drag
+- A visual drag indicator (e.g. dimmed ghost of the layer row) follows the cursor
+- The origin layer side shows a "dragging" state (e.g. slightly faded)
+
+**Drop targets**
+- Any layer side in the same slot (L or R, any number) is a valid drop target
+- Drop target highlights on hover during drag
+- Dropping onto an **empty** layer side: moves the source cell to the destination; origin becomes empty
+- Dropping onto a **loaded** layer side: swaps the two cells — source goes to destination, destination goes to origin
+- **Option (⌥) + drop onto an empty layer side**: copies the source cell to the destination; origin is unchanged (no-op on loaded destination — swap intent is ambiguous with copy modifier)
+- All cell data is transferred: `filePath`, `fileName`, `duration`, `channels`, `trim`, `stereoMode`
+- Visual cue: when Option is held during drag, drop target shows a "copy" indicator (e.g. `+` badge on ghost, or distinct highlight color) to distinguish from move
+
+**Constraints**
+- Drag only works within the same slot — cross-slot or cross-bank dragging not supported in this slice
+- Dragging a split-pair cell (split-L or split-R) breaks the split on both sides before moving; the moved cell retains its file but reverts to an appropriate mono mode
+- If the trim panel is open for the dragged cell, it closes on drag start
+
+**Implementation notes**
+- Uses HTML5 drag-and-drop (`draggable` attribute + `onDragStart` / `onDragOver` / `onDrop`) on the layer side surface, separate from the existing Tauri file drop handler which listens for OS-level file drops
+- Drag data: cell id string set via `dataTransfer.setData`
+- Store: add a `moveCell(from: CellKey, to: CellKey)` and `swapCells(a: CellKey, b: CellKey)` action
+
+Done when: user can drag any loaded layer side and drop it onto another side in the same slot to move or swap; Cmd+drag copies to an empty slot with origin intact; all cell data including trim and stereo settings transfers correctly.
+
+---
+
+### Slice 27 — Slot copy/move/swap *(future, needs exploration)*
+**Goal:** User can move or swap an entire slot's worth of layers (all 8 layer sides: L0–L3 and R0–R3) between slot positions, either within a bank or across banks.
+
+**Interaction options to explore:**
+- **Drag-and-drop on slot circles:** Click-hold a filled slot circle and drag it onto another slot circle — move if target is empty, swap if target is loaded
+- **Copy/paste via context menu or keyboard shortcut:** Right-click a slot circle → "Copy Slot" / "Paste Slot" / "Clear Slot"; paste into any slot, including across banks
+- **Both:** Drag for quick rearranging, keyboard shortcut for copy (non-destructive)
+
+**Scope questions to resolve before building:**
+- Should dragging move or copy? Move is more predictable; copy risks accidental duplication
+- Cross-bank slots: useful (e.g. copy a drum slot to a new bank) but increases complexity
+- Does paste overwrite the destination or only paste into empty slots?
+- Should split-pair linkage be preserved when moving a slot? Almost certainly yes
+
+**What transfers:**
+- All 8 layer sides of the slot: `filePath`, `fileName`, `duration`, `channels`, `trim`, `stereoMode`
+- Split-pair relationships maintained
+
+**Implementation notes:**
+- Store: add `moveSlot(fromBank, fromSlot, toBank, toSlot)` and `swapSlots(...)` actions operating on all 8 layer keys at once
+- Drag on slot circle must be disambiguated from click-to-navigate (likely: click = navigate, drag = initiate slot move)
+- Separate from Slice 26 (layer drag-to-rearrange within a slot)
+
+Done when: user can rearrange or duplicate slots without manual reassignment of individual layers.
+
+---
+
 ## Status
 
 | Slice | Name | Status |
@@ -438,12 +498,16 @@ Done when: user can combine 2–4 source files into one layer slot and export a 
 | 12 | Inline format controls | done |
 | 13 | Trim panel redesign | done |
 | 14 | Real waveform rendering | done |
-| 15 | GitHub Actions auto-build | deferred |
-| 16 | Trim panel playhead | pending |
-| 17 | Crash reporting | future |
+| 15 | GitHub Actions auto-build | done |
+| 16 | Trim panel playhead | done |
+| 17 | Crash reporting | done |
 | 18 | Trim: grid-based trimming | future |
 | 19 | Trim: region distribution to layers | future |
 | 20 | Trim: waveform zoom | future |
-| 21 | Export: pre-export warnings (untrimmed + stereo) | future |
+| 21 | Export: pre-export warnings (untrimmed + stereo) | done |
 | 22 | Trim: multi-layer alignment + crossfader | future |
 | 23 | Export: selective bank export overlay | future |
+| 24 | Per-layer level and normalisation | future |
+| 25 | Layer sample combine (concatenation) | future |
+| 26 | Layer drag-to-rearrange | done |
+| 27 | Slot copy/move/swap | future (needs exploration) |
