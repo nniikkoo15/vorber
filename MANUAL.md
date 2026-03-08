@@ -22,16 +22,30 @@ xattr -dr com.apple.quarantine /Applications/Vorber.app
 Option B — System Settings:
 Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to the Vorber warning.
 
+### Windows
+
+1. Download `Vorber_x.x.x_x64-setup.exe` from the GitHub releases page.
+2. Run the installer. Windows SmartScreen may warn "Windows protected your PC." This is expected for unsigned apps — the app is not harmful.
+
+**To bypass:**
+
+Click **More info**, then **Run anyway**.
+
 ### Requirement: ffmpeg
 
 Vorber uses **ffmpeg** for audio conversion during export. You must have it installed.
 
-Install via Homebrew:
+**macOS** — install via Homebrew:
 ```
 brew install ffmpeg
 ```
-
 Vorber will locate it automatically at `/opt/homebrew/bin/ffmpeg`, `/usr/local/bin/ffmpeg`, or wherever `which ffmpeg` reports.
+
+**Windows** — install via winget:
+```
+winget install ffmpeg
+```
+Or download a build from [ffmpeg.org](https://ffmpeg.org/download.html) and add the `bin` folder to your system PATH. Vorber will locate it automatically via `where ffmpeg`.
 
 ---
 
@@ -58,21 +72,19 @@ All exported files must be mono WAV, 48 kHz, 16-bit PCM, max 60 seconds. Vorber 
 ## Interface Overview
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  [new] [open] [clear BANK] [clear SLOT]   filename  [●] │  ← top bar
-├──────┬──────┬──────┬───────────────────────────────────┤
-│ RED  │GREEN │ BLUE │ ...                                │  ← bank tabs
-├──────┴──────┴──────┴───────────────────────────────────┤
-│        ○ ○ ○ ○   RED \ SLOT 0   ○ ○ ○ ○               │  ← slot grid
-├─────────────────────────────────────────────────────────┤
-│  [▶] filename    1m23s  stereo  —  mono  1m23s  name [▶]│  ← layer rows
-│  [▶] filename    1m23s  mono    —  mono  1m23s  name [▶]│
-│  ...                                                    │
-├─────────────────────────────────────────────────────────┤
-│  [trim panel]                                           │  ← trim panel
-├─────────────────────────────────────────────────────────┤
-│  [export]                                               │  ← export bar
-└─────────────────────────────────────────────────────────┘
+ top bar   [new] [open] [clear BANK] [clear SLOT]   filename  [●]
+           ────────────────────────────────────────────────────────
+ bank tabs  RED   GREEN   BLUE   ...
+           ────────────────────────────────────────────────────────
+ slot grid     ○ ○ ○ ○   RED \ SLOT 0   ○ ○ ○ ○
+           ────────────────────────────────────────────────────────
+ layers    [▶] filename   1m23s  stereo  —  mono  1m23s  name  [▶]
+           [▶] filename   1m23s  mono    —  mono  1m23s  name  [▶]
+           ...
+           ────────────────────────────────────────────────────────
+ trim      [trim panel]
+           ────────────────────────────────────────────────────────
+ export    [export]
 ```
 
 ---

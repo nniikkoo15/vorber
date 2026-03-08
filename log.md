@@ -240,3 +240,6 @@ Before export begins, warn the user about: (1) layers with trimmed length still 
 
 ### Meta
 - **PLAYBOOK.md**: new document capturing higher-order build principles, spec discipline, UX heuristics, technical heuristics, pre-spec and pre-code question checklists, anti-patterns, and release checklist — updated collaboratively and linked from CLAUDE.md
+
+### Fixes
+- **Drag stops playback**: dragging a playing sample now stops audio as soon as the drag threshold is crossed

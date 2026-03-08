@@ -465,6 +465,8 @@ function LayerSide({ bank, slot, layer, side, isInEdit }: LayerSideProps) {
       if (!pDragSrc) return;
       if (!pDragActive && Math.hypot(ev.clientX - pDragStartX, ev.clientY - pDragStartY) > 5) {
         pDragActive = true;
+        const s0 = useStore.getState();
+        if (s0.playingCellId === srcId) { stopPreview(); s0.setPlayingCellId(null); }
         (document.querySelector(`[data-cell-id="${srcId}"]`) as HTMLElement | null)?.classList.add("dragging");
         pDragGhost = document.createElement("div");
         pDragGhost.className = "pointer-drag-ghost";
