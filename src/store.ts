@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export const BANKS = ["RED", "GREEN", "BLUE", "WHITE", "CYAN", "ORANGE", "YELLOW", "PINK"] as const;
 export type Bank = (typeof BANKS)[number];
@@ -66,12 +67,18 @@ interface StoreState {
   setOpenTrimId: (id: string | null) => void;
   moveCell: (from: CellKey, to: CellKey) => void;
   swapCells: (a: CellKey, b: CellKey) => void;
+  moveSlot: (fromBank: Bank, fromSlot: Slot, toBank: Bank, toSlot: Slot) => void;
+  swapSlots: (aBank: Bank, aSlot: Slot, bBank: Bank, bSlot: Slot) => void;
+  copySlot: (fromBank: Bank, fromSlot: Slot, toBank: Bank, toSlot: Slot) => void;
+  moveBank: (from: Bank, to: Bank) => void;
+  swapBanks: (a: Bank, b: Bank) => void;
+  copyBank: (from: Bank, to: Bank) => void;
   setProjectMeta: (path: string | null, name: string) => void;
   setDirty: (dirty: boolean) => void;
   setMissingPaths: (paths: string[]) => void;
 }
 
-export const useStore = create<StoreState>((set, get) => ({
+export const useStore = create<StoreState>()(persist((set, get) => ({
   activeBank: "RED",
   activeSlot: 0,
   cells: {},
@@ -176,6 +183,99 @@ export const useStore = create<StoreState>((set, get) => ({
       if (bCell) cells[aId] = bCell; else delete cells[aId];
       return { cells, isDirty: true };
     }),
+  moveSlot: (fromBank, fromSlot, toBank, toSlot) =>
+    set((s) => {
+      const cells = { ...s.cells };
+      const fromPrefix = `${fromBank}:${fromSlot}:`;
+      const toPrefix = `${toBank}:${toSlot}:`;
+      // delete dest first
+      Object.keys(cells).forEach(k => { if (k.startsWith(toPrefix)) delete cells[k]; });
+      // move src → dest
+      Object.keys(s.cells).forEach(k => {
+        if (k.startsWith(fromPrefix)) {
+          const layer = k.slice(fromPrefix.length);
+          cells[`${toPrefix}${layer}`] = s.cells[k];
+          delete cells[k];
+        }
+      });
+      return { cells, isDirty: true };
+    }),
+  swapSlots: (aBank, aSlot, bBank, bSlot) =>
+    set((s) => {
+      const cells = { ...s.cells };
+      const aPrefix = `${aBank}:${aSlot}:`;
+      const bPrefix = `${bBank}:${bSlot}:`;
+      const aKeys = Object.keys(s.cells).filter(k => k.startsWith(aPrefix));
+      const bKeys = Object.keys(s.cells).filter(k => k.startsWith(bPrefix));
+      // move a → b
+      aKeys.forEach(k => {
+        const layer = k.slice(aPrefix.length);
+        cells[`${bPrefix}${layer}`] = s.cells[k];
+      });
+      // move b → a
+      bKeys.forEach(k => {
+        const layer = k.slice(bPrefix.length);
+        cells[`${aPrefix}${layer}`] = s.cells[k];
+      });
+      // clear orphans (a had layers b didn't, or vice versa)
+      aKeys.forEach(k => { if (!bKeys.some(bk => bk.slice(bPrefix.length) === k.slice(aPrefix.length))) delete cells[k]; });
+      bKeys.forEach(k => { if (!aKeys.some(ak => ak.slice(aPrefix.length) === k.slice(bPrefix.length))) delete cells[k]; });
+      return { cells, isDirty: true };
+    }),
+  copySlot: (fromBank, fromSlot, toBank, toSlot) =>
+    set((s) => {
+      const cells = { ...s.cells };
+      const fromPrefix = `${fromBank}:${fromSlot}:`;
+      const toPrefix = `${toBank}:${toSlot}:`;
+      Object.keys(s.cells).forEach(k => {
+        if (k.startsWith(fromPrefix)) {
+          const layer = k.slice(fromPrefix.length);
+          cells[`${toPrefix}${layer}`] = s.cells[k];
+        }
+      });
+      return { cells, isDirty: true };
+    }),
+  moveBank: (from, to) =>
+    set((s) => {
+      const cells = { ...s.cells };
+      const fromPrefix = `${from}:`;
+      const toPrefix = `${to}:`;
+      // delete dest
+      Object.keys(cells).forEach(k => { if (k.startsWith(toPrefix)) delete cells[k]; });
+      // move src → dest
+      Object.keys(s.cells).forEach(k => {
+        if (k.startsWith(fromPrefix)) {
+          cells[`${toPrefix}${k.slice(fromPrefix.length)}`] = s.cells[k];
+          delete cells[k];
+        }
+      });
+      return { cells, isDirty: true };
+    }),
+  swapBanks: (a, b) =>
+    set((s) => {
+      const cells = { ...s.cells };
+      const aPrefix = `${a}:`;
+      const bPrefix = `${b}:`;
+      const aKeys = Object.keys(s.cells).filter(k => k.startsWith(aPrefix));
+      const bKeys = Object.keys(s.cells).filter(k => k.startsWith(bPrefix));
+      aKeys.forEach(k => { cells[`${bPrefix}${k.slice(aPrefix.length)}`] = s.cells[k]; });
+      bKeys.forEach(k => { cells[`${aPrefix}${k.slice(bPrefix.length)}`] = s.cells[k]; });
+      aKeys.forEach(k => { if (!bKeys.some(bk => bk.slice(bPrefix.length) === k.slice(aPrefix.length))) delete cells[k]; });
+      bKeys.forEach(k => { if (!aKeys.some(ak => ak.slice(aPrefix.length) === k.slice(bPrefix.length))) delete cells[k]; });
+      return { cells, isDirty: true };
+    }),
+  copyBank: (from, to) =>
+    set((s) => {
+      const cells = { ...s.cells };
+      const fromPrefix = `${from}:`;
+      const toPrefix = `${to}:`;
+      Object.keys(s.cells).forEach(k => {
+        if (k.startsWith(fromPrefix)) {
+          cells[`${toPrefix}${k.slice(fromPrefix.length)}`] = s.cells[k];
+        }
+      });
+      return { cells, isDirty: true };
+    }),
   setPlayingCellId: (id) => set({ playingCellId: id }),
   loopingCellId: null,
   setLoopingCellId: (id) => set({ loopingCellId: id }),
@@ -187,4 +287,8 @@ export const useStore = create<StoreState>((set, get) => ({
   setProjectMeta: (path, name) => set({ projectPath: path, projectName: name }),
   setDirty: (dirty) => set({ isDirty: dirty }),
   setMissingPaths: (paths) => set({ missingPaths: paths }),
+}), {
+  name: "vorber-session",
+  version: 1,
+  partialize: (state) => ({ cells: state.cells }),
 }));

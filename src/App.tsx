@@ -8,11 +8,30 @@ import { BANKS, SLOTS, LAYERS, useStore, type Bank, type Slot, type Layer, type 
 import "./App.css";
 
 // Shared audio context + gain node for immediate silence on stop
-const previewCtx = new AudioContext();
-const previewGain = previewCtx.createGain();
+let previewCtx = new AudioContext();
+let previewGain = previewCtx.createGain();
 previewGain.connect(previewCtx.destination);
 let playingSource: AudioBufferSourceNode | null = null;
 let isDecoding = false;
+
+// Recreate audio context if it has gone stale (macOS sleep/wake, device change).
+// The context can appear "running" but produce no audio after a long session.
+function reinitAudioContext() {
+  try { previewCtx.close(); } catch { /* ignore */ }
+  previewCtx = new AudioContext();
+  previewGain = previewCtx.createGain();
+  previewGain.connect(previewCtx.destination);
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    if (previewCtx.state === "suspended") {
+      previewCtx.resume().catch(() => reinitAudioContext());
+    } else if (previewCtx.state === "closed") {
+      reinitAudioContext();
+    }
+  }
+});
 
 // Pointer-event drag state (replaces HTML5 DnD, which is unreliable in WKWebView)
 let pDragSrc: string | null = null;
@@ -36,6 +55,227 @@ function pDragCleanup() {
   pDragGhost = null;
   pDragSrc = null;
   pDragActive = false;
+}
+
+// Slot drag state
+let sDragSrc: { bank: Bank; slot: Slot } | null = null;
+let sDragStartX = 0;
+let sDragStartY = 0;
+let sDragActive = false;
+let sDragGhost: HTMLElement | null = null;
+
+function sClearDragOver() {
+  document.querySelectorAll(".slot-circle.drag-over").forEach((c) => c.classList.remove("drag-over"));
+}
+
+function sDragCleanup() {
+  if (sDragSrc) {
+    const el = document.querySelector(`[data-slot-key="${sDragSrc.bank}:${sDragSrc.slot}"]`) as HTMLElement | null;
+    el?.classList.remove("dragging");
+  }
+  sClearDragOver();
+  sDragGhost?.remove();
+  sDragGhost = null;
+  sDragSrc = null;
+  sDragActive = false;
+}
+
+function performSlotDrop(srcBank: Bank, srcSlot: Slot, destBank: Bank, destSlot: Slot, altKey: boolean) {
+  const s = useStore.getState();
+  const destPrefix = `${destBank}:${destSlot}:`;
+  const destHasCells = Object.keys(s.cells).some(k => k.startsWith(destPrefix));
+  const srcPrefix = `${srcBank}:${srcSlot}:`;
+
+  // stop playback if playing cell is in src slot
+  if (s.playingCellId?.startsWith(srcPrefix)) { stopPreview(); s.setPlayingCellId(null); }
+  // close trim panel if open for cell in src slot
+  if (s.openTrimId?.startsWith(srcPrefix)) s.setOpenTrimId(null);
+
+  if (altKey && destHasCells) {
+    // no-op
+  } else if (altKey && !destHasCells) {
+    s.copySlot(srcBank, srcSlot, destBank, destSlot);
+  } else if (destHasCells) {
+    s.swapSlots(srcBank, srcSlot, destBank, destSlot);
+  } else {
+    s.moveSlot(srcBank, srcSlot, destBank, destSlot);
+  }
+  // always navigate to destination
+  useStore.getState().setBank(destBank);
+  useStore.getState().setSlot(destSlot);
+}
+
+// Bank drag state
+let bDragSrc: Bank | null = null;
+let bDragStartX = 0;
+let bDragStartY = 0;
+let bDragActive = false;
+let bDragGhost: HTMLElement | null = null;
+
+function bClearDragOver() {
+  document.querySelectorAll(".bank-tab.drag-over").forEach((c) => c.classList.remove("drag-over"));
+}
+
+function bDragCleanup() {
+  if (bDragSrc) {
+    const el = document.querySelector(`[data-bank-key="${bDragSrc}"]`) as HTMLElement | null;
+    el?.classList.remove("dragging");
+  }
+  bClearDragOver();
+  bDragGhost?.remove();
+  bDragGhost = null;
+  bDragSrc = null;
+  bDragActive = false;
+}
+
+function performBankDrop(srcBank: Bank, destBank: Bank, altKey: boolean) {
+  const s = useStore.getState();
+  const destPrefix = `${destBank}:`;
+  const destHasCells = Object.keys(s.cells).some(k => k.startsWith(destPrefix));
+  const srcPrefix = `${srcBank}:`;
+
+  // stop playback if playing cell is in src bank
+  if (s.playingCellId?.startsWith(srcPrefix)) { stopPreview(); s.setPlayingCellId(null); }
+  // close trim panel if open for cell in src bank
+  if (s.openTrimId?.startsWith(srcPrefix)) s.setOpenTrimId(null);
+
+  if (altKey && destHasCells) {
+    // no-op
+  } else if (altKey && !destHasCells) {
+    s.copyBank(srcBank, destBank);
+  } else if (destHasCells) {
+    s.swapBanks(srcBank, destBank);
+  } else {
+    s.moveBank(srcBank, destBank);
+  }
+  // always navigate to destination
+  useStore.getState().setBank(destBank);
+}
+
+function handleSlotMouseDown(bank: Bank, slot: Slot, e: React.MouseEvent) {
+  const s = useStore.getState();
+  const srcPrefix = `${bank}:${slot}:`;
+  if (!Object.keys(s.cells).some(k => k.startsWith(srcPrefix))) return; // only assigned slots
+  e.preventDefault();
+  sDragSrc = { bank, slot };
+  sDragStartX = e.clientX;
+  sDragStartY = e.clientY;
+  sDragActive = false;
+  const onMove = (ev: MouseEvent) => {
+    if (!sDragSrc) return;
+    if (!sDragActive && Math.hypot(ev.clientX - sDragStartX, ev.clientY - sDragStartY) > 5) {
+      sDragActive = true;
+      const el = document.querySelector(`[data-slot-key="${sDragSrc.bank}:${sDragSrc.slot}"]`) as HTMLElement | null;
+      el?.classList.add("dragging");
+      sDragGhost = document.createElement("div");
+      sDragGhost.className = "pointer-drag-ghost";
+      sDragGhost.textContent = `${ev.altKey ? "copying" : "moving"} ${sDragSrc.bank} SLOT${sDragSrc.slot}`;
+      document.body.appendChild(sDragGhost);
+    }
+    if (sDragActive) {
+      if (sDragGhost) { sDragGhost.style.left = `${ev.clientX + 12}px`; sDragGhost.style.top = `${ev.clientY - 10}px`; }
+      sClearDragOver();
+      const target = document.elementFromPoint(ev.clientX, ev.clientY)?.closest("[data-slot-key]") as HTMLElement | null;
+      if (target && target.dataset.slotKey !== `${sDragSrc.bank}:${sDragSrc.slot}`) {
+        const [destBankStr, destSlotStr] = target.dataset.slotKey!.split(":");
+        const destBank = destBankStr as Bank;
+        const destSlot = parseInt(destSlotStr) as Slot;
+        const destPrefix = `${destBank}:${destSlot}:`;
+        const destHasCells = Object.keys(useStore.getState().cells).some(k => k.startsWith(destPrefix));
+        if (ev.altKey && destHasCells) {
+          // no-op, no highlight
+        } else {
+          target.classList.add("drag-over");
+          if (sDragGhost) {
+            const destLabel = destBank === sDragSrc.bank ? `SLOT${destSlot}` : `${destBank} SLOT${destSlot}`;
+            if (destHasCells) {
+              sDragGhost.textContent = `swapping ${sDragSrc.bank} SLOT${sDragSrc.slot} <> ${destBank} SLOT${destSlot}`;
+            } else {
+              sDragGhost.textContent = `${ev.altKey ? "copying" : "moving"} ${sDragSrc.bank} SLOT${sDragSrc.slot} > ${destLabel}`;
+            }
+          }
+        }
+      } else if (sDragGhost) {
+        sDragGhost.textContent = `${ev.altKey ? "copying" : "moving"} ${sDragSrc.bank} SLOT${sDragSrc.slot}`;
+      }
+    }
+  };
+  const onUp = (ev: MouseEvent) => {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    if (!sDragActive) { sDragCleanup(); return; }
+    const target = document.elementFromPoint(ev.clientX, ev.clientY)?.closest("[data-slot-key]") as HTMLElement | null;
+    const destKey = target?.dataset.slotKey;
+    const savedSrc = sDragSrc;
+    sDragCleanup();
+    if (savedSrc && destKey && destKey !== `${savedSrc.bank}:${savedSrc.slot}`) {
+      const [destBankStr, destSlotStr] = destKey.split(":");
+      performSlotDrop(savedSrc.bank, savedSrc.slot, destBankStr as Bank, parseInt(destSlotStr) as Slot, ev.altKey);
+    }
+  };
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
+
+function handleBankMouseDown(bank: Bank, e: React.MouseEvent) {
+  const s = useStore.getState();
+  const srcPrefix = `${bank}:`;
+  if (!Object.keys(s.cells).some(k => k.startsWith(srcPrefix))) return; // only assigned banks
+  e.preventDefault();
+  bDragSrc = bank;
+  bDragStartX = e.clientX;
+  bDragStartY = e.clientY;
+  bDragActive = false;
+  const onMove = (ev: MouseEvent) => {
+    if (!bDragSrc) return;
+    if (!bDragActive && Math.hypot(ev.clientX - bDragStartX, ev.clientY - bDragStartY) > 5) {
+      bDragActive = true;
+      const el = document.querySelector(`[data-bank-key="${bDragSrc}"]`) as HTMLElement | null;
+      el?.classList.add("dragging");
+      bDragGhost = document.createElement("div");
+      bDragGhost.className = "pointer-drag-ghost";
+      bDragGhost.textContent = `${ev.altKey ? "copying" : "moving"} ${bDragSrc} bank`;
+      document.body.appendChild(bDragGhost);
+    }
+    if (bDragActive) {
+      if (bDragGhost) { bDragGhost.style.left = `${ev.clientX + 12}px`; bDragGhost.style.top = `${ev.clientY - 10}px`; }
+      bClearDragOver();
+      const target = document.elementFromPoint(ev.clientX, ev.clientY)?.closest("[data-bank-key]") as HTMLElement | null;
+      if (target && target.dataset.bankKey !== bDragSrc) {
+        const destBank = target.dataset.bankKey as Bank;
+        const destPrefix = `${destBank}:`;
+        const destHasCells = Object.keys(useStore.getState().cells).some(k => k.startsWith(destPrefix));
+        if (ev.altKey && destHasCells) {
+          // no-op, no highlight
+        } else {
+          target.classList.add("drag-over");
+          if (bDragGhost) {
+            if (destHasCells) {
+              bDragGhost.textContent = `swapping ${bDragSrc} <> ${destBank}`;
+            } else {
+              bDragGhost.textContent = `${ev.altKey ? "copying" : "moving"} ${bDragSrc} > ${destBank}`;
+            }
+          }
+        }
+      } else if (bDragGhost) {
+        bDragGhost.textContent = `${ev.altKey ? "copying" : "moving"} ${bDragSrc} bank`;
+      }
+    }
+  };
+  const onUp = (ev: MouseEvent) => {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    if (!bDragActive) { bDragCleanup(); return; }
+    const target = document.elementFromPoint(ev.clientX, ev.clientY)?.closest("[data-bank-key]") as HTMLElement | null;
+    const destBank = target?.dataset.bankKey as Bank | undefined;
+    const savedSrc = bDragSrc;
+    bDragCleanup();
+    if (savedSrc && destBank && destBank !== savedSrc) {
+      performBankDrop(savedSrc, destBank, ev.altKey);
+    }
+  };
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
 }
 
 function performCellDrop(srcId: string, destId: string, cmdKey: boolean) {
@@ -424,6 +664,7 @@ function LayerSide({ bank, slot, layer, side, isInEdit }: LayerSideProps) {
     <button className="clear-side-btn" onClick={(e) => {
       e.stopPropagation();
       if (useStore.getState().playingCellId === id) { stopPreview(); useStore.getState().setPlayingCellId(null); }
+      if (useStore.getState().openTrimId === id) setOpenTrimId(null);
       clearCell({ bank, slot, layer });
     }}>✕</button>
   );
@@ -807,8 +1048,47 @@ function TrimPanelContent({ bank, slot, layer }: { bank: Bank; slot: Slot; layer
     return () => { active = false; cancelAnimationFrame(rafId); };
   }, [isLooping, isPlayingOnce, isLayerPlaying]);
 
+  const duration = cell?.duration ?? 0;
+
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!dragging.current) return;
+      const cur = trimRef.current;
+      let newTrim: TrimSettings;
+      if (dragging.current === "region") {
+        const anchor = dragAnchorRef.current;
+        if (!anchor) return;
+        const barWidth = barRef.current?.getBoundingClientRect().width ?? 1;
+        const deltaSec = ((e.clientX - anchor.x) / barWidth) * duration;
+        const newStart = Math.max(0, Math.min(duration - cur.length, anchor.start + deltaSec));
+        newTrim = { start: newStart, length: cur.length };
+      } else {
+        const t = xToSec(e.clientX);
+        if (dragging.current === "start") {
+          const end = cur.start + cur.length;
+          const minLen = Math.min(0.5, duration);
+          const maxLen = Math.min(60, duration);
+          const clampedLen = Math.min(maxLen, Math.max(minLen, end - t));
+          const newStart = Math.max(0, end - clampedLen);
+          newTrim = { start: newStart, length: end - newStart };
+        } else {
+          newTrim = clamp({ start: cur.start, length: t - cur.start });
+        }
+      }
+      setTrim({ bank, slot, layer }, newTrim);
+      if (linkedRef.current) setTrim(linkedRef.current, newTrim);
+      if (loopSourceRef.current) {
+        loopSourceRef.current.loopStart = newTrim.start;
+        loopSourceRef.current.loopEnd = newTrim.start + newTrim.length;
+      }
+    }
+    function onUp() { dragging.current = null; }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+  }, [bank, slot, layer]);
+
   if (!cell || !cell.duration) return null;
-  const duration = cell.duration;
   const trim: TrimSettings = cell.trim ?? { start: 0, length: Math.min(duration, 60) };
   trimRef.current = trim;
   durationRef.current = duration;
@@ -904,44 +1184,6 @@ function TrimPanelContent({ bank, slot, layer }: { bank: Bank; slot: Slot; layer
     } catch { /* file read or decode failed */ }
     finally { isDecoding = false; }
   }
-
-  useEffect(() => {
-    function onMove(e: MouseEvent) {
-      if (!dragging.current) return;
-      const cur = trimRef.current;
-      let newTrim: TrimSettings;
-      if (dragging.current === "region") {
-        const anchor = dragAnchorRef.current;
-        if (!anchor) return;
-        const barWidth = barRef.current?.getBoundingClientRect().width ?? 1;
-        const deltaSec = ((e.clientX - anchor.x) / barWidth) * duration;
-        const newStart = Math.max(0, Math.min(duration - cur.length, anchor.start + deltaSec));
-        newTrim = { start: newStart, length: cur.length };
-      } else {
-        const t = xToSec(e.clientX);
-        if (dragging.current === "start") {
-          const end = cur.start + cur.length; // end point is fixed
-          const minLen = Math.min(0.5, duration);
-          const maxLen = Math.min(60, duration);
-          const clampedLen = Math.min(maxLen, Math.max(minLen, end - t));
-          const newStart = Math.max(0, end - clampedLen);
-          newTrim = { start: newStart, length: end - newStart };
-        } else {
-          newTrim = clamp({ start: cur.start, length: t - cur.start });
-        }
-      }
-      setTrim({ bank, slot, layer }, newTrim);
-      if (linkedRef.current) setTrim(linkedRef.current, newTrim);
-      if (loopSourceRef.current) {
-        loopSourceRef.current.loopStart = newTrim.start;
-        loopSourceRef.current.loopEnd = newTrim.start + newTrim.length;
-      }
-    }
-    function onUp() { dragging.current = null; }
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-  }, [bank, slot, layer]);
 
   // format badge label
   let fmtLabel = "mono";
@@ -1252,12 +1494,14 @@ function App() {
           return (
             <button
               key={bank}
+              data-bank-key={bank}
               className={`bank-tab${isActive ? " active" : ""}${hasFiles ? " assigned" : ""}`}
               style={{
                 "--category-accent": BANK_COLORS[bank],
                 "--category-accent-outline": BANK_COLORS_OUTLINE[bank],
               } as React.CSSProperties}
               onClick={() => setBank(bank)}
+              onMouseDown={(e) => handleBankMouseDown(bank, e)}
             >
               <span className="bank-tab-name">{bank}</span>
               <span className="bank-tab-count">{slotCount} {slotCount === 1 ? "slot" : "slots"}</span>
@@ -1275,6 +1519,7 @@ function App() {
           return (
             <div
               key={slot}
+              data-slot-key={`${activeBank}:${slot}`}
               className={`slot-circle${isActive ? " active" : ""}${hasLayers ? " has-layers" : ""}`}
               style={{
                 background: hasLayers ? BANK_COLORS_BRIGHT[activeBank] : BANK_COLORS_DIM[activeBank],
@@ -1283,6 +1528,7 @@ function App() {
                   : (isActive ? "#ffffff" : "#bebebe"),
               }}
               onClick={() => setSlot(slot)}
+              onMouseDown={(e) => handleSlotMouseDown(activeBank, slot, e)}
             >
               {count}
             </div>

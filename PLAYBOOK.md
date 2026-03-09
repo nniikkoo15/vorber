@@ -80,7 +80,39 @@ If you fix something and it breaks again differently, the fix addressed a sympto
 
 ---
 
-## 5. Questions — Before Speccing
+## 5. Friction Checkpoint
+
+When something feels wrong, messy, awkward, or too complex — before doing anything else.
+
+There are three layers. The middle one is the one that gets skipped.
+
+**Signal** — something feels off. Raw, unresolved, possibly nameless.
+
+**Framing** — what category of problem is this actually? This is the step to not skip.
+Possible categories:
+- Tooling mismatch / solution-space not surveyed (wrong tool, or existing tool not checked before building)
+- Feedback loop too slow or opaque
+- Missing precision or visibility into state
+- Workflow mismatch (doing it in the wrong order or context)
+- Absent capability (feature genuinely missing)
+- Direction uncertainty (not sure what the right outcome looks like yet)
+
+**Response** — what do I do next? Not the full solution. The cheapest next learning step.
+Possible responses: use an existing tool, change the process, sketch or prototype cheaply, postpone, build a real thing.
+
+**The mandatory pause — before turning any friction into a build task:**
+
+1. State the raw friction in one sentence.
+2. Name what category of problem this might be.
+3. Name at least two plausible response paths — including "does this already exist?"
+4. Choose the cheapest next learning step — not the fullest solution.
+5. If the right response is still unclear after the pause: record it as an unresolved signal. Do not force it into spec or implementation.
+
+*The design tweaker (two days, scrapped) was a framing failure. The signal was present. The jump skipped category diagnosis and went straight to "build a tool." The existing tool (Figma MCP) was already available.*
+
+---
+
+## 6. Questions — Before Speccing
 
 Ask these before defining what to build:
 
@@ -95,7 +127,7 @@ Ask these before defining what to build:
 
 ---
 
-## 6. Questions — Before Coding
+## 7. Questions — Before Coding
 
 Ask these before writing implementation:
 
@@ -105,10 +137,11 @@ Ask these before writing implementation:
 - Does this belong in the current slice, or should it be logged as a future slice?
 - What is the success criterion — how will we know it works?
 - What existing behavior must not break?
+- Does this mechanism already exist? If yes: challenge the replacement request — ask whether to extend or improve what's there instead of duplicating it. Call out concrete consequences of the existing approach not generalizing (e.g. "anchored to `.layer-side`, won't work for `.slot-circle`"). Compare options against established UX patterns, name the pattern, where it's used, and why it fits or doesn't fit this context.
 
 ---
 
-## 7. Anti-Patterns
+## 8. Anti-Patterns
 
 - Coding before behavior is fully specified
 - Mixing multiple concept changes in one step or one commit
@@ -119,10 +152,13 @@ Ask these before writing implementation:
 - Polishing UI before the underlying data flow is correct
 - Choosing an implementation approach without checking platform constraints first
 - Adding comments, docstrings, or cleanup to code that wasn't changed
+- Duplicating an existing mechanism (ghost, overlay, drag state) without first questioning whether to extend the existing one
+- Translating friction directly into a build task without pausing to name the problem category and compare response paths (see Friction Checkpoint)
+- Committing at asset-production or full-build level before a cheaper exploration step has validated the direction
 
 ---
 
-## 8. Release Checklist
+## 9. Release Checklist
 
 When shipping a version:
 

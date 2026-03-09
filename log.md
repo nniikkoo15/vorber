@@ -243,3 +243,39 @@ Before export begins, warn the user about: (1) layers with trimmed length still 
 
 ### Fixes
 - **Drag stops playback**: dragging a playing sample now stops audio as soon as the drag threshold is crossed
+
+---
+
+## 2026-03-08 — documentation and design session
+
+No code changes. Documentation and design work:
+
+- **`ux.md`**: unified both UX essays (Sample Fine Adjustment, Sample Bank/Slot/Layer Rearrangement) into a single file with TOC. Individual `ux/` folder deleted.
+- **`decisions.md`**: unified all 11 existing ADRs into a single file with TOC grouped by status. Individual `decisions/` folder deleted.
+- **`KNOWLEDGE.md`** deleted — redundant now that `ux.md` and `decisions.md` are self-indexing with TOCs.
+- **`CLAUDE.md`**: project files section updated to reference flat files; added rule to check `USER.md` when a new feature or slice is introduced.
+- **`USER.md`**: added workflow note — user expects to rearrange freely after initial assignment; upfront placement doesn't need to be final.
+- **`PLAYBOOK.md`**: added guidance on checking for existing mechanisms before proposing new ones, calling out concrete consequences, and comparing against established UX patterns.
+
+### New ADRs added to `decisions.md`
+
+- **ADR-012** (decided, not yet implemented): Missing file detection — re-validate paths on window focus; layer row shows red "file missing" pill + X button; confirmed against Figma design (node 74:13376).
+- **ADR-013** (proposed): Drag-hover bank tab switching during slot drag — 600ms hover delay switches active bank mid-drag, enabling cross-bank slot drop without auto-placement ambiguity. Matches macOS Finder hover-to-open convention.
+
+---
+
+## 2026-03-09 — v0.1.6: session restore, audio fixes, trim panel bugs
+
+### Features
+- **Session restore (auto-persist)**: Zustand `persist` middleware with `localStorage` — only `cells` persisted (schema version 1); grid state survives full app restart with no explicit save required
+- **Tauri fs permissions**: added `fs:allow-read-file` and `fs:allow-exists` scoped to `$HOME/**`; required for reading restored file paths after restart (Tauri dialog-granted scope is not persisted between sessions)
+
+### Fixes
+- **Audio silence / delay after sleep/wake**: `visibilitychange` listener proactively resumes or reinitialises the AudioContext on wake; fixes complete silence and playback delay after closing/reopening lid
+- **React hooks crash on sample remove**: `useEffect` in `TrimPanelContent` was positioned after an early `return null`, causing "rendered fewer hooks than expected" when a cell was cleared; moved above the guard
+- **Trim panel auto-opens after remove+reassign**: clearing a cell now also clears `openTrimId` if it matched; prevents the panel from persisting open on next assignment to the same layer
+- **Waveform missing after remove+reassign**: consequence of above fix; proper unmount/remount on clear means the waveform canvas initialises fresh
+
+### Meta
+- **PLAYBOOK.md §5 Friction Checkpoint**: three-layer Signal→Framing→Response model with mandatory pause, problem category list, "does this already exist?" step, and unresolved signal holding rule
+- **CLAUDE.md**: new rule to decompose mixed signal+solution input before acting on the response
